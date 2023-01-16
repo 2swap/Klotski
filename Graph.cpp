@@ -340,6 +340,7 @@ public:
 		std::ofstream myfile;
 		myfile << std::setprecision(std::numeric_limits<double>::digits10 + 2);
 		myfile.open ("viewer/data.json");
+		myfile << "var blurb = '" + nodes.find(root_node_hash)->second.data->blurb + "';\n";
 		myfile << "var nodes_to_use = {\n";
 		for(auto it = nodes.begin(); it != nodes.end(); ++it){
 			myfile << "\t\"" << it->first << "\":{\"dist\":" << it->second.dist << ",\"solution_dist\":" << it->second.solution_dist << ",\"x\":" << it->second.x << ",\"y\":" << it->second.y << ",\"z\":" << it->second.z << ",\"representation\":\"" << it->second.data->representation << "\",\"neighbors\":[";

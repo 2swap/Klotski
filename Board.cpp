@@ -19,6 +19,7 @@ public:
 	int w;
 	char* representation;
 	std::unordered_set<char> letters;
+	std::string blurb;
 
 	Board(char* filename) {
 		std::ifstream file;
@@ -34,12 +35,15 @@ public:
 		representation = new char[h*w+1];
 
 		int y = 0;
-		while (std::getline(file, line)) {
+		for (int y = 0; y < h; y++){
+			std::getline(file, line);
 			for (int x = 0; x < w; x++){
 				representation[y*w+x] = line[x];
 			}
-			y++;
 		}
+
+		std::getline(file, blurb);
+
 		representation[h*w] = '\0';
 		file.close();
 	}

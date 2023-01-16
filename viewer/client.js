@@ -47,14 +47,15 @@ function render_blurb(){
     graphctx.fillText("[s] Show Solutions: " + config.solutions.options[config.solutions.select], 20, y+=16)
     graphctx.fillText("[p] Shortest Path: " + config.path.options[config.path.select], 20, y+=16)
     graphctx.fillText("[r] Reset", 20, y+=16)
-    graphctx.fillText("", 20, y+=16)
+/*    graphctx.fillText("", 20, y+=16)
     graphctx.fillText("This is the 'Setting Sun' puzzle, AKA Klotski.", 20, y+=16)
     graphctx.fillText("The right depicts the graph of all positions of the puzzle.", 20, y+=16)
     graphctx.fillText("You can navigate the white circle by sliding pieces in the top left.", 20, y+=16)
     graphctx.fillText("There are a total of 25,955 unique positions.", 20, y+=16)
     graphctx.fillText("Slide pieces to move the large piece to the bottom center.", 20, y+=16)
     graphctx.fillText("Controls: rotate with A/D, pan with arrow keys, zoom with mouse wheel.", 20, y+=16)
-    graphctx.fillText("You can also click on any position on the graph to 'teleport' to it.", 20, y+=16)
+    graphctx.fillText("You can also click on any position on the graph to 'teleport' to it.", 20, y+=16)*/
+    graphctx.fillText(blurb, 20, y+=16)
 }
 
 function render_histogram(){
