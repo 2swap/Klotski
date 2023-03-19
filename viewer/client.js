@@ -1,13 +1,12 @@
 const graphcanvas = document.getElementById(`graph`);
 const w = graphcanvas.width = window.innerWidth;
 const h = graphcanvas.height = window.innerHeight;
-const graphctx = graphcanvas.getContext(`2d`);
+const gl = graphcanvas.getContext(`webgl`);
 
 let tick = 0;
-let ox = 0; let oy = 100; let zoom = 1;
+let ox = 0; let oy = 100;
 let alpha = 0.8;
 let graphbutton = false;
-var render_lock = false;
 var save_start_board = board_string;
 
 var config = {
@@ -16,28 +15,19 @@ var config = {
     path: {options:["Invisible", "Visible"], select:0},
 };
 
-let nodes = {};
-
-increment_max();
+let nodes = nodes_to_use;
 
 var hash = 0;
 
-function increment_max(){
-    var max_x = 0;
-    for (const name in nodes_to_use){
-        max_x = Math.max(nodes_to_use[name].x, max_x);
-    }
-    for (const name in nodes_to_use){
-        node = nodes_to_use[name];
-        nodes[name] = node;
-        node.x*=w*.2/max_x;
-        node.y*=w*.2/max_x;
-        node.z*=w*.2/max_x;
-        delete nodes_to_use[name];
-    }
-}
+var positions = [];
+var indices = [];
 
-function render_blurb(){
+var my = 0;
+var mx = 0;
+
+construct_vertices();
+
+/*function render_blurb(){
     graphctx.globalAlpha = 1;
     var y = h - 230;
     graphctx.fillStyle = "white";
@@ -55,9 +45,9 @@ function render_blurb(){
     graphctx.fillText("Slide pieces to move the large piece to the bottom center.", 20, y+=16)
     graphctx.fillText("Controls: rotate with A/D, pan with arrow keys, zoom with mouse wheel.", 20, y+=16)
     graphctx.fillText("You can also click on any position on the graph to 'teleport' to it.", 20, y+=16)
-}
+}*/
 
-function render_histogram(){
+/*function render_histogram(){
     var l = histogram_solutions.length;
     var max = 0;
     for(var i = 0; i < l; i++){
@@ -81,76 +71,107 @@ function render_histogram(){
         bar_width = hs*300/max;
         graphctx.fillRect(w-bar_width, h*(i-1)/l, bar_width, h/l+1);
     }
-}
+}*/
 
-function render_graph() {
-    render_lock = true;
-    graphctx.globalAlpha = 1;
-    graphctx.fillStyle = `Black`;
-    graphctx.fillRect(0, 0, w, h);
-    graphctx.lineWidth = 0.5;
-    for (const name in nodes) get_node_coordinates(name);
+function construct_vertices() {
+    var i = 0;
     for (const name in nodes) {
         const node = nodes[name];
-        for (const neighbor_name in node.neighbors) {
+                for (const neighbor_name in node.neighbors) {
             const neighbor = nodes[node.neighbors[neighbor_name]];
             if(typeof neighbor == "undefined") continue;
             if(node.dist > neighbor.dist || (node.dist == neighbor.dist && node.x < neighbor.x)) continue;
-            if(config.colors.select == 0)graphctx.strokeStyle = color_wheel(node.dist);
-            else if(config.colors.select == 1)graphctx.strokeStyle = color_wheel(node.solution_dist);
-            else graphctx.strokeStyle = "gray";
-            graphctx.beginPath();
-            graphctx.moveTo(node.screen_x, node.screen_y);
-            graphctx.lineTo(neighbor.screen_x, neighbor.screen_y);
-            graphctx.stroke();
-        }
-        if(config.solutions.select == 1 && node.solution_dist == 0){
-            graphctx.strokeStyle = `white`;
-            graphctx.beginPath();
-            graphctx.arc(node.screen_x, node.screen_y, 5, 0, 2*Math.PI);
-            graphctx.stroke();
+        positions.push(0.01*node.x, 0.01*node.y, 0.01*node.z)
+        positions.push(0.01*neighbor.x, 0.01*neighbor.y, 0.01*neighbor.z);
+                    indices.push(i++, i++);
         }
     }
-    graphctx.strokeStyle = `white`;
-    graphctx.lineWidth = 2;
-    graphctx.beginPath();
-    graphctx.arc(nodes[hash].screen_x, nodes[hash].screen_y, 10, 0, 2*Math.PI);
-    graphctx.stroke();
+}
 
-    if(config.path.select == 1){
-        var curr_node = nodes[hash];
-        while(curr_node.solution_dist != 0){
-            for(i in curr_node.neighbors){
-                var neighbor = nodes[curr_node.neighbors[i]];
-                if(neighbor.solution_dist < curr_node.solution_dist){
+function run_gl(){
+// Set up a viewport and a projection matrix
+gl.viewport(0, 0, w, h);
+//define projection matrix
+const fieldOfView = 45 * Math.PI / 180; // in radians
+const aspect = w/h;
+const zNear = 0.1;
+const zFar = 1000.0;
+const projectionMatrix = mat4.create();
+mat4.perspective(projectionMatrix, fieldOfView, aspect, zNear, zFar);
 
-                    graphctx.beginPath();
-                    graphctx.moveTo(curr_node.screen_x, curr_node.screen_y);
-                    graphctx.lineTo(neighbor.screen_x, neighbor.screen_y);
-                    graphctx.stroke();
+const modelViewMatrix = mat4.create();
+mat4.translate(modelViewMatrix, modelViewMatrix, [0.0, 0.0, -100.0]); // move camera back by 5 units
+mat4.rotateX(modelViewMatrix, modelViewMatrix, my);
+mat4.rotateY(modelViewMatrix, modelViewMatrix, mx);
 
-                    curr_node = neighbor;
-                    break;
-                }
-            }
-        }
-    }
+
+// Step 2: Create a vertex shader and a fragment shader program
+const vertexShaderSource = `
+  attribute vec3 a_position;
+  uniform mat4 u_modelViewMatrix;
+  uniform mat4 u_projectionMatrix;
+  void main() {
+    gl_Position = u_projectionMatrix * u_modelViewMatrix * vec4(a_position, 1);
+  }
+`;
+const fragmentShaderSource = `
+  precision mediump float;
+  uniform vec4 u_color;
+  void main() {
+    gl_FragColor = u_color;
+  }
+`;
+const vertexShader = gl.createShader(gl.VERTEX_SHADER);
+gl.shaderSource(vertexShader, vertexShaderSource);
+gl.compileShader(vertexShader);
+const fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+gl.shaderSource(fragmentShader, fragmentShaderSource);
+gl.compileShader(fragmentShader);
+const program = gl.createProgram();
+gl.attachShader(program, vertexShader);
+gl.attachShader(program, fragmentShader);
+gl.linkProgram(program);
+gl.useProgram(program);
+
+const projectionMatrixLocation = gl.getUniformLocation(program, 'u_projectionMatrix');
+gl.uniformMatrix4fv(projectionMatrixLocation, false, projectionMatrix);
+
+const modelViewMatrixLocation = gl.getUniformLocation(program, 'u_modelViewMatrix');
+gl.uniformMatrix4fv(modelViewMatrixLocation, false, modelViewMatrix);
+
+    // Step 3: Define the vertices of your lines and store them in a buffer
+const positionBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+const positionAttributeLocation = gl.getAttribLocation(program, 'a_position');
+gl.enableVertexAttribArray(positionAttributeLocation);
+gl.vertexAttribPointer(positionAttributeLocation, 3, gl.FLOAT, false, 0, 0);
+
+
+// Step 4: Define an index buffer to indicate which vertices make up each line segment
+const indexBuffer = gl.createBuffer();
+gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(indices), gl.STATIC_DRAW);
+
+// Step 6: Set up the vertex and fragment shader programs and specify any uniform variables needed for rendering
+const colorLocation = gl.getUniformLocation(program, 'u_color');
+gl.uniform4fv(colorLocation, [1, 0, 0, 1]); // set line color to red
+
+gl.clearColor(0.0, 0.0, 0.0, 1.0); // set clear color to black
+gl.enable(gl.DEPTH_TEST);
+gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+// Step 7: Call WebGL draw functions to render the lines
+gl.drawElements(gl.LINES, indices.length, gl.UNSIGNED_SHORT, 0);
+
 }
 
 function render () {
-    if(render_lock) return;
+run_gl();
+    //render graph
+    //render_blurb();
+    //render_histogram();
 
-    render_graph();
-    render_blurb();
-    render_histogram();
-
-    render_lock = false;
-}
-
-function get_node_coordinates (hash) {
-    var node = nodes[hash];
-    nodes[hash].screen_x = (node.x*Math.cos(alpha)+node.z*Math.sin(alpha) - ox) / zoom + w / 2;
-    nodes[hash].screen_y = (node.y - oy) / zoom + h / 2;
 }
 
 function get_closest_node_to (coords) {
@@ -181,12 +202,8 @@ function normsin(angle){
     return Math.floor(128.0*(Math.sin(angle)+1));
 }
 
-window.addEventListener(`wheel`,
-    (event) => {
-        zoom *= Math.pow(1.7, Math.sign(event.deltaY));
-        if(!render_lock)render();
-    }
-);
+var lastClickX = 0;
+var lastClickY = 0;
 graphcanvas.addEventListener(`mousedown`, function(e){
     graphbutton = true;
     var rect = graphcanvas.getBoundingClientRect();
@@ -194,6 +211,8 @@ graphcanvas.addEventListener(`mousedown`, function(e){
         x: e.clientX - rect.left,
         y: e.clientY - rect.top
     };
+    lastClickX = screen_coords.x/w
+    lastClickY = screen_coords.y/h
     board_string = nodes[get_closest_node_to(screen_coords)].representation;
     on_board_change();
 }, false);
@@ -207,6 +226,11 @@ graphcanvas.addEventListener(`mousemove`, function(e){
         x: e.clientX - rect.left,
         y: e.clientY - rect.top
     };
+    mx += -lastClickX+(e.clientX - rect.left)/w;
+    my += -lastClickY+(e.clientY - rect.top)/h;
+    lastClickX = screen_coords.x/w;
+    lastClickY = screen_coords.y/h;
+    on_board_change();
 }, false);
 
 window.addEventListener(`keydown`, key, false);
@@ -214,12 +238,6 @@ window.addEventListener(`keydown`, key, false);
 function key (e) {
     const c = e.keyCode;
     console.log(c + " " + "r".charCodeAt(0));
-    if (c == 37) ox -= zoom * 100;
-    if (c == 38) oy -= zoom * 100;
-    if (c == 39) ox += zoom * 100;
-    if (c == 40) oy += zoom * 100;
-    if (c == 65) alpha -= .04;
-    if (c == 68) alpha += .04;
     if (c == 67) config.colors.select = (config.colors.select+1)%config.colors.options.length;
     if (c == 83) config.solutions.select = (config.solutions.select+1)%config.solutions.options.length;
     if (c == 80) config.path.select = (config.path.select+1)%config.path.options.length;
@@ -254,7 +272,7 @@ setInterval(render_board, 10);
 var EMPTY_SPACE = '.';
 
 hash = get_hash();
-if(!render_lock)render();
+render();
 
 function render_board () {
     for(i = 0; i < 3; i++){
@@ -311,7 +329,7 @@ function move_piece(dy, dx){
 
 function on_board_change(){
     hash = get_hash();
-    if(!render_lock)render();
+    render();
 }
 
 var board_release = function(){
