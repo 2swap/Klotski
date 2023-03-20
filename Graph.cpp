@@ -2,6 +2,8 @@
 #define GRAPH_H
 
 #include <iomanip>
+#include <iostream>
+#include <fstream>
 #include <unordered_set>
 #include <unordered_map>
 #include <map>
@@ -9,9 +11,8 @@
 #include <queue>
 #include <random>
 #include <limits.h>
-#include "Board.cpp"
+#include "GenericBoard.cpp"
 #include "json.hpp"
-
 using json = nlohmann::json;
 
 double dist_bound = -1;
