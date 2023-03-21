@@ -91,6 +91,7 @@ public:
 			for(auto it = neighbor_nodes.begin(); it != neighbor_nodes.end(); ++it){
 				if(nodes.find((*it)->get_hash()) == nodes.end())
 					add_node(*it, dist);
+                else delete *it;
 			}
 		}
 	}
