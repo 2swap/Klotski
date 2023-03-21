@@ -49,8 +49,12 @@ public:
 	}
 
 	void add_node(T t, int dist){
-		Node<T> n(t, dist);
 		double hash = t->get_hash();
+        if(nodes.find(hash) != nodes.end()) {
+            delete t;
+            return;
+        }
+		Node<T> n(t, dist);
 		nodes.insert(std::make_pair(hash,n));
 		if(nodes.size()%100 == 0) std::cout << nodes.size() << " nodes and counting..." << std::endl;
 		bfs_queue.push(std::make_pair(hash,dist+1));
@@ -89,9 +93,7 @@ public:
 			int dist = pop.second;
 			std::unordered_set<T> neighbor_nodes = nodes.find(id)->second.data->get_neighbors();
 			for(auto it = neighbor_nodes.begin(); it != neighbor_nodes.end(); ++it){
-				if(nodes.find((*it)->get_hash()) == nodes.end())
-					add_node(*it, dist);
-                else delete *it;
+				add_node(*it, dist);
 			}
 		}
 	}
