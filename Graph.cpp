@@ -56,6 +56,9 @@ public:
             delete t;
             return;
         }
+        if(size() == 0){
+            root_node_hash = hash;
+        }
         Node<T> n(t, dist);
         nodes.insert(std::make_pair(hash,n));
         if(nodes.size()%100 == 0) std::cout << nodes.size() << " nodes and counting..." << std::endl;
@@ -174,12 +177,11 @@ public:
         return 0;
     }
 
-    void iterate_physics_and_render(int iterations){
+    void iterate_physics(int iterations){
         for(int i = 0; i < iterations; i++) {
             std::cout << "Spreading out graph, iteration " << i << std::endl;
             physics_engine();
         }
-        render_json(root_node_hash);
     }
 
     void physics_engine(){
@@ -275,9 +277,9 @@ public:
         }
     }
 
-    void render_json(double root_node_hash) {
+    void render_json(std::string filename) {
         std::ofstream myfile;
-        myfile.open("viewer/data.json");
+        myfile.open(filename);
 
         json json_data;
         json_data["blurb"] = nodes.find(root_node_hash)->second.data->blurb;

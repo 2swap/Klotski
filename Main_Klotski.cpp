@@ -16,7 +16,6 @@ int main(int argc, char** argv){
     std::cout << "Reading board..." << std::endl;
     Board* b = new Board(argv[1]);
     graph.add_node(b, 0);
-    graph.root_node_hash = b->get_hash();
 
     graph.expand_graph();
 
@@ -27,7 +26,8 @@ int main(int argc, char** argv){
 
     std::cout << graph.size() << std::endl;
 
-    graph.iterate_physics_and_render(100);
+    graph.iterate_physics(100);
+    graph.render_json("viewer_klotski/data.json");
     
     return 0;
 }

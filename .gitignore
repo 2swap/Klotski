@@ -1,3 +1,5 @@
-klotski_viewer/data/*
-klotski_viewer/data.json
+viewer_c4/data/*
+viewer_c4/data.json
+viewer_klotski/data/*
+viewer_klotski/data.json
 a.out
