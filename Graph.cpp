@@ -5,10 +5,14 @@
 #include <unordered_set>
 #include <unordered_map>
 #include <map>
+#include <list>
 #include <queue>
 #include <random>
 #include <limits.h>
 #include "Board.cpp"
+#include "json.hpp"
+
+using json = nlohmann::json;
 
 double dist_bound = -1;
 
@@ -63,26 +67,6 @@ public:
             dist_count[dist].first++;
     }
 
-    /*void node_distance(double id1, double id2){
-        Node<T>* node1 = &(nodes.find(id1)->second);
-        Node<T>* node2 = &(nodes.find(id2)->second);
-
-        bfs_queue.clear();
-        bfs_queue.push(id1, *node1)
-        while(!bfs_queue.empty()){
-            auto pop = bfs_queue.front();
-            bfs_queue.pop();
-            double id = pop.first;
-            int dist = pop.second;
-            std::unordered_set<T> neighbor_nodes = nodes.find(id)->second.data->get_neighbors();
-            for(auto it = neighbor_nodes.begin(); it != neighbor_nodes.end(); ++it){
-                if(nodes.find((*it)->get_hash()) == nodes.end())
-                    add_node(*it, dist);
-            }
-        }
-    }
-    TODO - doesnt work yet*/
-
     void expand_graph(){
         while(!bfs_queue.empty()){
             auto pop = bfs_queue.front();
@@ -92,6 +76,21 @@ public:
             std::unordered_set<T> neighbor_nodes = nodes.find(id)->second.data->get_neighbors();
             for(auto it = neighbor_nodes.begin(); it != neighbor_nodes.end(); ++it){
                 add_node(*it, dist);
+            }
+        }
+    }
+
+    //Ensure that no neighbor edge points to a nonexistent hash
+    void sanitize_for_closure() {
+        for (auto it = nodes.begin(); it != nodes.end(); ++it) {
+            std::list<double> to_remove;
+            for (double d : it->second.neighbors) {
+                if (nodes.find(d) == nodes.end()) {
+                    to_remove.push_back(d);
+                }
+            }
+            for (double d : to_remove) {
+                it->second.neighbors.erase(d);
             }
         }
     }
@@ -107,7 +106,7 @@ public:
         return solutions;
     }
 
-    void mark_solution_dists(std::set<double> solutions){
+    void mark_distances(std::set<double> solutions){
         bfs_queue = std::queue<std::pair<double, int>>(); // clear it
         for(double solution : solutions){
             bfs_queue.push(std::make_pair(solution, 0));
@@ -225,18 +224,6 @@ public:
         }
     }
 
-    double approach_origin(double id){
-        if(node_doesnt_exist(id)) return 0;
-        Node<T>* node = &(nodes.find(id)->second);
-        std::unordered_set<double> neighbor_nodes = node->neighbors;
-        for(double neighbor_id : neighbor_nodes){
-            Node<T>* neighbor = &(nodes.find(neighbor_id)->second);
-            if(neighbor->dist == node->dist-1)
-                return neighbor_id;
-        }
-        return 0;
-    }
-
     void iterate_physics_and_render(int iterations){
         for(int i = 0; i < iterations; i++) {
             std::cout << "Spreading out graph, iteration " << i << std::endl;
@@ -249,8 +236,6 @@ public:
         for(auto it = nodes.begin(); it != nodes.end(); ++it){
             Node<T>* node = &(it->second);
             if(node->physics_new) {
-                double nid = approach_origin(it->first);
-                if(node_doesnt_exist(nid)) continue;
                 Node<T>* happyneighbor = &(nodes.find(nid)->second);
                 node->x = happyneighbor->x + (double) rand() / (RAND_MAX);
                 node->y = happyneighbor->y + (double) rand() / (RAND_MAX);
@@ -337,7 +322,64 @@ public:
         }
     }
 
-    void render_json(double root_node_hash){
+    void render_json(double root_node_hash) {
+        std::ofstream myfile;
+        myfile.open("viewer/data.json");
+
+        json json_data;
+        json_data["blurb"] = nodes.find(root_node_hash)->second.data->blurb;
+
+        json nodes_to_use;
+        for (auto it = nodes.begin(); it != nodes.end(); ++it) {
+            json node_info;
+            node_info["dist"] = it->second.dist;
+            node_info["solution_dist"] = it->second.solution_dist;
+            node_info["x"] = it->second.x;
+            node_info["y"] = it->second.y;
+            node_info["z"] = it->second.z;
+            node_info["representation"] = it->second.data->representation;
+
+            std::ostringstream oss;
+            oss << std::setprecision(std::numeric_limits<double>::digits10 + 2) << it->first;
+
+            json neighbors;
+            for (const auto& neighbor : it->second.neighbors) {
+                std::ostringstream oss2;
+                oss2 << std::setprecision(std::numeric_limits<double>::digits10 + 2) << neighbor;
+                neighbors.push_back(oss2.str());
+            }
+            node_info["neighbors"] = neighbors;
+
+            nodes_to_use[oss.str()] = node_info;
+        }
+
+        json_data["nodes_to_use"] = nodes_to_use;
+
+        json histogram_non_solutions;
+        for (const auto& it : dist_count) {
+            histogram_non_solutions.push_back(it.second.first);
+        }
+        json_data["histogram_non_solutions"] = histogram_non_solutions;
+
+        json histogram_solutions;
+        for (const auto& it : dist_count) {
+            histogram_solutions.push_back(it.second.second);
+        }
+        json_data["histogram_solutions"] = histogram_solutions;
+
+        json_data["board_string"] = nodes.find(root_node_hash)->second.data->representation;
+        json_data["rushhour"] = rushhour;
+        json_data["board_w"] = nodes.find(root_node_hash)->second.data->w;
+        json_data["board_h"] = nodes.find(root_node_hash)->second.data->h;
+
+        myfile << std::setw(4) << json_data;
+
+        myfile.close();
+
+        dist_bound += 0.125;
+    }
+
+    /*void render_json(double root_node_hash){
         std::ofstream myfile;
         myfile << std::setprecision(std::numeric_limits<double>::digits10 + 2);
         myfile.open ("viewer/data.json");
@@ -373,7 +415,7 @@ public:
         myfile.close();
 
         dist_bound+=.125;
-    }
+    }*/
 
     int size(){
         return nodes.size();
