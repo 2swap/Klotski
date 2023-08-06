@@ -2,17 +2,17 @@
 #include <stdlib.h>
 #include <iostream>
 #include <fstream>
-#include "Graph.cpp"
 #include "json.hpp"
+#include "C4Board.cpp"
+#include "Graph.cpp"
 using json = nlohmann::json;
 
-Graph<Board*> graph;
+Graph<C4Board*> graph;
 
 int main(int argc, char** argv){
-	srand(time(NULL));
+    srand(time(NULL));
 
-	std::cout << "Reading board..." << std::endl;
-
+    std::cout << "Reading board..." << std::endl;
 
     std::ifstream file("Connect 4.json");
     std::string line;
@@ -22,21 +22,24 @@ int main(int argc, char** argv){
     // Read the JSON file
     json j = json::parse(file);
 
-    for (auto& element : j.items()) {
+    /*for (auto& element : j.items()) {
         std::string key = element.key();
         // Add all substrings of the key to the graph
         for (size_t i = 0; i <= key.length(); ++i) {
             std::string sub_key = key.substr(0, i);
-            Board* board = new Board(sub_key);
+            C4Board* board = new C4Board(sub_key);
             graph.add_node(board, 0);
         }
-    }
+    }*/
+    graph.add_node(new C4Board("444444326552252676226333366111775553"), 0);
     file.close();
 
-	graph.sanitize_for_closure();
-	graph.expand_graph();
-	std::cout << "nodes count = " << graph.size() << std::endl;
-	graph.iterate_physics_and_render(10000);
+    graph.expand_graph();
+    graph.sanitize_for_closure();
+    graph.make_edges_bidirectional();
+    std::cout << "nodes count = " << graph.size() << std::endl;
+    graph.iterate_physics(100);
+    graph.render_json("viewer_c4/data.json");
     
-	return 0;
+    return 0;
 }

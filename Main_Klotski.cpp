@@ -3,10 +3,9 @@
 #include <iostream>
 #include <fstream>
 #include "Graph.cpp"
-#include "Board.cpp"
+#include "KlotskiBoard.cpp"
 
-Graph<Board*> graph;
-Graph<Board*> graph1;
+Graph<KlotskiBoard*> graph;
 
 int main(int argc, char** argv){
     srand(time(NULL));
@@ -14,14 +13,14 @@ int main(int argc, char** argv){
     if(argc!= 2) {std::cout << "pass in a board"<<std::endl;return 1;}
 
     std::cout << "Reading board..." << std::endl;
-    Board* b = new Board(argv[1]);
+    KlotskiBoard* b = new KlotskiBoard(argv[1]);
     graph.add_node(b, 0);
 
     graph.expand_graph();
 
-    auto solutions = graph1.get_solutions();
+    auto solutions = graph.get_solutions();
     std::cout << "solutions count = " << solutions.size() << std::endl;
-    std::cout << "nodes count = " << graph1.size() << std::endl;
+    std::cout << "nodes count = " << graph.size() << std::endl;
     graph.mark_distances(solutions);
 
     std::cout << graph.size() << std::endl;

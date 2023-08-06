@@ -1,5 +1,4 @@
-#ifndef GRAPH_H
-#define GRAPH_H
+#pragma once
 
 #include <iomanip>
 #include <iostream>
@@ -15,11 +14,16 @@
 #include "json.hpp"
 using json = nlohmann::json;
 
-double dist_bound = -1;
+double dist_bound = 1;
 
 template <class T>
 class Node {
 public:
+    /**
+     * Constructor to create a new node.
+     * @param t The data associated with the node.
+     * @param dist The distance of the node from the root.
+     */
     Node(T t, int dist) : data(t), dist(dist) {
         std::unordered_set<T> neighbor_nodes = data->get_neighbors();
         for(auto it = neighbor_nodes.begin(); it != neighbor_nodes.end(); ++it){
@@ -37,6 +41,10 @@ public:
     bool physics_new = dist_bound<0;
 };
 
+/**
+ * A template class representing a graph.
+ * @tparam T The type of data stored in the nodes of the graph.
+ */
 template <class T>
 class Graph{
 public:
@@ -51,18 +59,25 @@ public:
         }
     }
 
+    /**
+     * Add a node to the graph.
+     * @param t The data associated with the node.
+     * @param dist The distance of the node from the root.
+     */
     void add_node(T t, int dist){
         double hash = t->get_hash();
         if(nodes.find(hash) != nodes.end()) {
             delete t;
             return;
         }
-        if(size() == 0){
-            root_node_hash = hash;
-        }
         Node<T> n(t, dist);
         nodes.insert(std::make_pair(hash,n));
-        if(nodes.size()%100 == 0) std::cout << nodes.size() << " nodes and counting..." << std::endl;
+        int s = size();
+        if(s == 1){
+            root_node_hash = hash;
+            symmetrical = t->symmetrical;
+        }
+        if(s%100 == 0) std::cout << s << " nodes and counting..." << std::endl;
         bfs_queue.push(std::make_pair(hash,dist+1));
         dist_count.insert(std::make_pair(dist, std::make_pair(0,0)));
         if(t->is_solution())
@@ -71,6 +86,9 @@ public:
             dist_count[dist].first++;
     }
 
+    /**
+     * Expand the graph by adding neighboring nodes.
+     */
     void expand_graph(){
         while(!bfs_queue.empty()){
             auto pop = bfs_queue.front();
@@ -84,7 +102,44 @@ public:
         }
     }
 
-    //Ensure that no neighbor edge points to a nonexistent hash
+    /**
+     * Connect two nodes in the graph.
+     * @param node1 The hash of the first node.
+     * @param node2 The hash of the second node.
+     */
+    void connect_nodes(double node1, double node2) {
+        // Check if both nodes exist in the graph
+        if (node_exists(node1) || node_exists(node2)) {
+            return; // One or both nodes don't exist
+        }
+
+        // Add edge between the two nodes
+        nodes[node1].neighbors.insert(node2);
+        nodes[node2].neighbors.insert(node1);
+    }
+
+    /**
+     * Make all edges in the graph bidirectional by identifying unidirectional edges.
+     */
+    void make_edges_bidirectional() {
+        for(auto it = nodes.begin(); it != nodes.end(); ++it){
+            double node_id = it->first;
+            Node<T>* node = &(it->second);
+            std::unordered_set<double> neighbor_nodes = node->neighbors;
+            for(double neighbor_id : neighbor_nodes){
+                Node<T>* neighbor = &(nodes.find(neighbor_id)->second);
+                // Check if the edge is unidirectional (one node points to the other)
+                if (neighbor->neighbors.find(node_id) == neighbor->neighbors.end()) {
+                    // Make the edge bidirectional
+                    neighbor->neighbors.insert(node_id);
+                }
+            }
+        }
+    }
+
+    /**
+     * Sanitize the graph by removing neighbor edges that point to nonexistent nodes.
+     */
     void sanitize_for_closure() {
         for (auto it = nodes.begin(); it != nodes.end(); ++it) {
             std::list<double> to_remove;
@@ -99,6 +154,10 @@ public:
         }
     }
 
+    /**
+     * Get the set of solutions (nodes with is_solution() true).
+     * @return A set containing the hashes of solution nodes.
+     */
     std::set<double> get_solutions(){
         std::set<double> solutions;
         for(auto it = nodes.begin(); it != nodes.end(); ++it){
@@ -110,6 +169,10 @@ public:
         return solutions;
     }
 
+    /**
+     * Mark the distances of nodes from the solutions.
+     * @param solutions The set of solution node hashes.
+     */
     void mark_distances(std::set<double> solutions){
         bfs_queue = std::queue<std::pair<double, int>>(); // clear it
         for(double solution : solutions){
@@ -133,6 +196,10 @@ public:
         }
     }
 
+    /**
+     * Remove leaf nodes from the graph.
+     * @param repeat If true, repeat the removal process iteratively.
+     */
     void remove_leaves(bool repeat){
         int presize = nodes.size();
         std::queue<double> leaves;
@@ -150,12 +217,21 @@ public:
             remove_leaves(true);
     }
 
-    bool node_doesnt_exist(double id){
+    /**
+     * Check if a node with the given hash exists in the graph.
+     * @param id The hash of the node to check.
+     * @return True if the node exists, false otherwise.
+     */
+    bool node_exists(double id){
         return nodes.find(id) == nodes.end();
     }
 
+    /**
+     * Remove a node from the graph.
+     * @param id The hash of the node to be removed.
+     */
     void remove_node(double id){
-        if(node_doesnt_exist(id)) return;
+        if(!node_exists(id)) return;
         Node<T>* node = &(nodes.find(id)->second);
         std::unordered_set<double> neighbor_nodes = node->neighbors;
         for(double neighbor_id : neighbor_nodes){
@@ -166,8 +242,13 @@ public:
         nodes.erase(id);
     }
 
+    /**
+     * Find a neighboring node that is closer to the origin.
+     * @param id The hash of the node from which to find a neighbor.
+     * @return The hash of the neighbor node closer to the origin.
+     */
     double approach_origin(double id){
-        if(node_doesnt_exist(id)) return 0;
+        if(!node_exists(id)) return 0;
         Node<T>* node = &(nodes.find(id)->second);
         std::unordered_set<double> neighbor_nodes = node->neighbors;
         for(double neighbor_id : neighbor_nodes){
@@ -178,6 +259,10 @@ public:
         return 0;
     }
 
+    /**
+     * Iterate the physics engine to spread out graph nodes.
+     * @param iterations The number of iterations to perform.
+     */
     void iterate_physics(int iterations){
         for(int i = 0; i < iterations; i++) {
             std::cout << "Spreading out graph, iteration " << i << std::endl;
@@ -185,13 +270,16 @@ public:
         }
     }
 
+    /**
+     * Run the physics engine to update node positions based on forces.
+     */
     void physics_engine(){
         dist_bound += 0.125;
         for(auto it = nodes.begin(); it != nodes.end(); ++it){
             Node<T>* node = &(it->second);
             if(node->physics_new) {
                 double nid = approach_origin(it->first);
-                if(node_doesnt_exist(nid)) continue;
+                if(!node_exists(nid)) continue;
                 Node<T>* happyneighbor = &(nodes.find(nid)->second);
                 node->x = happyneighbor->x + (double) rand() / (RAND_MAX);
                 node->y = happyneighbor->y + (double) rand() / (RAND_MAX);
@@ -238,7 +326,7 @@ public:
                 double dz = node->z - neighbor->z;
                 double dist = std::sqrt(dx*dx+dy*dy+dz*dz);
                 double force = (.2*(dist-1))/dist;
-                if(rushhour || true) force *= force;
+                force *= force;
                 double nx = force * dx;
                 double ny = force * dy;
                 double nz = force * dz;
@@ -278,6 +366,10 @@ public:
         }
     }
 
+    /**
+     * Render the graph's data to a JSON file.
+     * @param filename The name of the JSON file to create.
+     */
     void render_json(std::string filename) {
         std::ofstream myfile;
         myfile.open(filename);
@@ -324,15 +416,18 @@ public:
         json_data["histogram_solutions"] = histogram_solutions;
 
         json_data["board_string"] = nodes.find(root_node_hash)->second.data->representation;
-        json_data["rushhour"] = rushhour;
-        json_data["board_w"] = nodes.find(root_node_hash)->second.data->w;
-        json_data["board_h"] = nodes.find(root_node_hash)->second.data->h;
+        json_data["board_w"] = nodes.find(root_node_hash)->second.data->BOARD_WIDTH;
+        json_data["board_h"] = nodes.find(root_node_hash)->second.data->BOARD_HEIGHT;
 
         myfile << std::setw(4) << json_data;
 
         myfile.close();
     }
 
+    /**
+     * Get the number of nodes in the graph.
+     * @return The number of nodes in the graph.
+     */
     int size(){
         return nodes.size();
     }
@@ -341,6 +436,5 @@ public:
     std::queue<std::pair<double, int>> bfs_queue;
     std::map<int, std::pair<int, int>> dist_count;
     double root_node_hash = 0;
+    bool symmetrical;
 };
-
-#endif
