@@ -60,10 +60,11 @@ $(document).ready(async function() {
             for (const name in nodes) get_node_coordinates(name);
             for (const name in nodes) {
                 const node = nodes[name];
-                for (const neighbor_name in node.neighbors) {
-                    const neighbor = nodes[node.neighbors[neighbor_name]];
+                for (const index in node.neighbors) {
+                    const neighbor_name = node.neighbors[index];
+                    const neighbor = nodes[neighbor_name];
                     if(typeof neighbor == "undefined") continue;
-                    if(name < neighbor_name) continue
+                    if(name < neighbor_name) continue;
                     graphctx.strokeStyle = node.representation.length%2==0?YELLOW:RED;
                     graphctx.beginPath();
                     graphctx.moveTo(node.screen_x, node.screen_y);

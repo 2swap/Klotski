@@ -176,7 +176,7 @@ public:
             }
         }
         pclose(pipe);
-        if (result.find("(0)") != std::string::npos){
+        if (result.find("(=)") != std::string::npos){
             std::cout << "Tie!" << std::endl;
             return TIE;
         }
@@ -190,13 +190,7 @@ public:
         }
     }
 
-    std::unordered_set<C4Board*> get_neighbors(){
-        std::unordered_set<C4Board*> neighbors;
-
-        if (is_solution()) {
-            return neighbors;
-        }
-
+    void add_all_winning_fhourstones(std::unordered_set<C4Board*>& neighbors){
         for (int i = 1; i <= BOARD_WIDTH; i++) {
             if (countChar(representation, '0'+i) < BOARD_HEIGHT) {
                 C4Board* moved = move_piece(i);
@@ -207,8 +201,29 @@ public:
                 }
             }
         }
+    }
 
-        std::cout << get_hash() << ": This board has " << neighbors.size() << " neighbors" << std::endl;
+    void add_only_child_steady_state(std::unordered_set<C4Board*>& neighbors){
+        for (int i = 1; i <= BOARD_WIDTH; i++) {
+            if (countChar(representation, '0'+i) < BOARD_HEIGHT) {
+                C4Board* moved = move_piece(i);
+                if(moved->who_is_winning() == RED){
+                    neighbors.insert(moved);
+                } else {
+                    delete moved;
+                }
+            }
+        }
+    }
+
+    std::unordered_set<C4Board*> get_neighbors(){
+        std::unordered_set<C4Board*> neighbors;
+
+        if (is_solution()) {
+            return neighbors;
+        }
+
+        add_all_winning_fhourstones(neighbors);
 
         return neighbors;
     }
