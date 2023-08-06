@@ -146,42 +146,6 @@ public:
             remove_leaves(true);
     }
 
-    void squish_hubs(){
-        std::queue<double> hubs;
-        for(auto it = nodes.begin(); it != nodes.end(); ++it){
-            double id = it->first;
-            Node<T>* node = &(it->second);
-            if(node->neighbors.size() > 6)
-                hubs.push(id);
-        }
-        while(!hubs.empty()){
-            squish_node(hubs.front());
-            hubs.pop();
-        }
-    }
-
-    void squish_components(){
-        std::queue<double> components;
-        for(auto it = nodes.begin(); it != nodes.end(); ++it){
-            double id = it->first;
-            Node<T>* node = &(it->second);
-            auto neighbors = node->neighbors;
-            bool should_include = true;
-            for (double d : neighbors){
-                if(nodes.find(d)->second.neighbors.size() <= 2){
-                    should_include = false;
-                    break;
-                }
-            }
-            if(neighbors.size() > 2 && should_include)
-                components.push(id);
-        }
-        while(!components.empty()){
-            squish_node(components.front());
-            components.pop();
-        }
-    }
-
     bool node_doesnt_exist(double id){
         return nodes.find(id) == nodes.end();
     }
@@ -198,44 +162,33 @@ public:
         nodes.erase(id);
     }
 
-    void remove_nodes(Graph<T> subgraph){
-        for(auto it = subgraph.nodes.begin(); it != subgraph.nodes.end(); ++it){
-            remove_node(it->first);
-        }
-    }
-
-    void squish_node(double id){
-        if(node_doesnt_exist(id)) return;
+    double approach_origin(double id){
+        if(node_doesnt_exist(id)) return 0;
         Node<T>* node = &(nodes.find(id)->second);
         std::unordered_set<double> neighbor_nodes = node->neighbors;
         for(double neighbor_id : neighbor_nodes){
             Node<T>* neighbor = &(nodes.find(neighbor_id)->second);
-            std::unordered_set<double> second_neighbors = neighbor->neighbors;
-            for(double second_neighbor_id : second_neighbors){
-                if(second_neighbor_id == id) continue;
-                Node<T>* second_neighbor = &(nodes.find(second_neighbor_id)->second);
-                second_neighbor->neighbors.erase(neighbor_id);
-                second_neighbor->neighbors.insert(id);
-                node->neighbors.insert(second_neighbor_id);
-            }
-            node->neighbors.erase(neighbor_id);
-            delete neighbor->data;
-            nodes.erase(neighbor_id);
+            if(neighbor->dist == node->dist-1)
+                return neighbor_id;
         }
+        return 0;
     }
 
     void iterate_physics_and_render(int iterations){
         for(int i = 0; i < iterations; i++) {
             std::cout << "Spreading out graph, iteration " << i << std::endl;
             physics_engine();
-            render_json(root_node_hash);
         }
+        render_json(root_node_hash);
     }
 
     void physics_engine(){
+        dist_bound += 0.125;
         for(auto it = nodes.begin(); it != nodes.end(); ++it){
             Node<T>* node = &(it->second);
             if(node->physics_new) {
+                double nid = approach_origin(it->first);
+                if(node_doesnt_exist(nid)) continue;
                 Node<T>* happyneighbor = &(nodes.find(nid)->second);
                 node->x = happyneighbor->x + (double) rand() / (RAND_MAX);
                 node->y = happyneighbor->y + (double) rand() / (RAND_MAX);
@@ -375,47 +328,7 @@ public:
         myfile << std::setw(4) << json_data;
 
         myfile.close();
-
-        dist_bound += 0.125;
     }
-
-    /*void render_json(double root_node_hash){
-        std::ofstream myfile;
-        myfile << std::setprecision(std::numeric_limits<double>::digits10 + 2);
-        myfile.open ("viewer/data.json");
-        myfile << "var blurb = '" + nodes.find(root_node_hash)->second.data->blurb + "';\n";
-        myfile << "var nodes_to_use = {\n";
-        for(auto it = nodes.begin(); it != nodes.end(); ++it){
-            myfile << "\t\"" << it->first << "\":{\"dist\":" << it->second.dist << ",\"solution_dist\":" << it->second.solution_dist << ",\"x\":" << it->second.x << ",\"y\":" << it->second.y << ",\"z\":" << it->second.z << ",\"representation\":\"" << it->second.data->representation << "\",\"neighbors\":[";
-            auto neighborit = it->second.neighbors.begin();
-            myfile << "\"" << *neighborit << "\"";
-            while (neighborit != it->second.neighbors.end()){
-                myfile << ",\"" << *neighborit << "\"";
-                ++neighborit;
-            }
-            myfile << "]},\n";
-        }
-        myfile << "}\n";
-
-        myfile << "var histogram_non_solutions = [";
-        for(auto it = dist_count.begin(); it != dist_count.end(); ++it)
-            myfile << it->second.first << ",";
-        myfile << "];" << std::endl;
-
-        myfile << "var histogram_solutions = [";
-        for(auto it = dist_count.begin(); it != dist_count.end(); ++it)
-            myfile << it->second.second << ",";
-        myfile << "];" << std::endl;
-
-        myfile << "var board_string = \"" << nodes.find(root_node_hash)->second.data->representation << "\";" << std::endl;
-        myfile << "var rushhour = " << rushhour << ";" << std::endl;
-        myfile << "var board_w = \"" << nodes.find(root_node_hash)->second.data->w << "\";" << std::endl;
-        myfile << "var board_h = \"" << nodes.find(root_node_hash)->second.data->h << "\";" << std::endl;
-
-        myfile.close();
-
-        dist_bound+=.125;
-    }*/
 
     int size(){
         return nodes.size();

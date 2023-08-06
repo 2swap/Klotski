@@ -25,7 +25,6 @@ int main(int argc, char** argv){
     std::cout << "nodes count = " << graph1.size() << std::endl;
     graph.mark_distances(solutions);
 
-    graph.remove_nodes(graph1);
     std::cout << graph.size() << std::endl;
 
     graph.iterate_physics_and_render(100);
