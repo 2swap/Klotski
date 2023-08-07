@@ -5,6 +5,7 @@
 #include <cmath>
 #include <set>
 #include <unordered_set>
+#include "SteadyState.cpp"
 #include "GenericBoard.cpp"
 
 enum C4Result {
@@ -13,35 +14,54 @@ enum C4Result {
     TIE
 };
 
+/*std::array<std::string, SS_HEIGHT> ss_list = {
+    "   |@  ",
+    "   |2  ",
+    "  2|2  ",
+    "  1|1  ",
+    "  1|21@",
+    "  12122"
+};*/
+std::array<std::string, SS_HEIGHT> ss_list = {
+    "       ",
+    "       ",
+    " #1  ++",
+    " 12  ==",
+    "#21  --",
+    "212  @@"
+};
+SteadyState ss(ss_list);
+
 class C4Board : public GenericBoard {
 public:
 
-    const int BOARD_HEIGHT = 6;
-    const int BOARD_WIDTH = 7;
+    const int BOARD_HEIGHT = SS_HEIGHT;
+    const int BOARD_WIDTH = SS_WIDTH;
 
     std::string representation;
-    int** board;
+    int board[SS_HEIGHT][SS_WIDTH];
     std::string blurb = "A connect 4 board.";
 
-    bool symmetrical = true;
+    bool symmetrical = false;
 
     C4Board(std::string representation) : representation(representation) {
         // Allocate memory for the board array
-        board = new int*[BOARD_HEIGHT];
         for (int i = 0; i < BOARD_HEIGHT; ++i) {
-            board[i] = new int[BOARD_WIDTH];
+            for (int j = 0; j < BOARD_WIDTH; ++j) {
+                board[i][j] = 0;
+            }
         }
 
         fill_board_from_string();
     }
 
     // Destructor to clean up dynamically allocated memory
-    ~C4Board() {
+    /*~C4Board() {
         for (int i = 0; i < BOARD_HEIGHT; ++i) {
             delete[] board[i];
         }
         delete[] board;
-    }
+    }currently on stack, not heap.*/
 
     void print() override {
         std::cout << representation << std::endl;
@@ -203,17 +223,19 @@ public:
         }
     }
 
-    void add_only_child_steady_state(std::unordered_set<C4Board*>& neighbors){
+    void add_all_legal_children(std::unordered_set<C4Board*>& neighbors){
         for (int i = 1; i <= BOARD_WIDTH; i++) {
             if (countChar(representation, '0'+i) < BOARD_HEIGHT) {
                 C4Board* moved = move_piece(i);
-                if(moved->who_is_winning() == RED){
-                    neighbors.insert(moved);
-                } else {
-                    delete moved;
-                }
+                neighbors.insert(moved);
             }
         }
+    }
+
+    void add_only_child_steady_state(std::unordered_set<C4Board*>& neighbors){
+        int x = ss.query_steady_state(board);
+        C4Board* moved = move_piece(x);
+        neighbors.insert(moved);
     }
 
     std::unordered_set<C4Board*> get_neighbors(){
@@ -224,6 +246,11 @@ public:
         }
 
         add_all_winning_fhourstones(neighbors);
+        /*if(representation.size() % 2 == 1){
+            add_only_child_steady_state(neighbors);
+        }else{
+            add_all_legal_children(neighbors);
+        }*/
 
         return neighbors;
     }

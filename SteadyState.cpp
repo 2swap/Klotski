@@ -1,6 +1,7 @@
 #pragma once
 
-#include "C4Board.cpp"
+#include <list>
+#include <unordered_set>
 
 const int SS_WIDTH = 7;
 const int SS_HEIGHT = 6;
@@ -28,7 +29,7 @@ public:
         populate_char_array(chars, steadystate);
     }
 
-    int query_steady_state(const char (&b)[SS_HEIGHT][SS_WIDTH]) {
+    int query_steady_state(const int (&b)[SS_HEIGHT][SS_WIDTH]) {
         // Given a board, use the steady state to determine where to play.
         // Return the x position of the row to play in.
 
@@ -37,7 +38,7 @@ public:
         std::unordered_map<char, int> alph;
         for (int x = 0; x < SS_WIDTH; ++x) {
             for (int y = 0; y < SS_HEIGHT; ++y) {
-                if(b[y][x] != ' ') continue;
+                if(b[y][x] != 0) continue;
                 char letter = steadystate[y][x];
                 if (miai.find(letter) != miai.end()) {
                     alph[letter] = alph[letter] + 1;
@@ -56,9 +57,9 @@ public:
             if (value == 1) {
                 for (int x = 0; x < SS_WIDTH; ++x) {
                     for (int y = 0; y < SS_HEIGHT; ++y) {
-                        if (b[y][x] == ' ' && steadystate[y][x] == key) {
+                        if (b[y][x] == 0 && steadystate[y][x] == key) {
                             // Forfeit if there is an unpaired unplayable miai
-                            if (y != SS_HEIGHT - 1 && b[y + 1][x] == ' ') {
+                            if (y != SS_HEIGHT - 1 && b[y + 1][x] == 0) {
                                 return -2;
                             }
                             return x+1;
@@ -74,7 +75,7 @@ public:
         for (int x = 0; x < SS_WIDTH; ++x) {
             for (int y = SS_HEIGHT - 1; y >= 0; --y) {
                 char ss = steadystate[y][x];
-                if (b[y][x] == ' ') {
+                if (b[y][x] == 0) {
                     priorities[x] = ss;
                     if (ss == ' ' && y % 2 == 0) return x+1;
                     if (ss == '|' && y % 2 == 1) return x+1;
@@ -95,7 +96,7 @@ public:
 
         int y = -1;
         for (int i = 0; i < SS_HEIGHT; ++i) {
-            if (b[i][x] == ' ') {
+            if (b[i][x] == 0) {
                 y = i;
                 break;
             }
@@ -121,7 +122,7 @@ void populate_char_array(const std::array<std::string, SS_HEIGHT>& source, char 
     }
 }
 
-SteadyState createSteadyState(const C4Board& c4Board) {
+SteadyState createSteadyState(const int (&b)[SS_HEIGHT][SS_WIDTH]) {
     SteadyState steady_state;
     //TODO later
     return steady_state;
@@ -138,10 +139,6 @@ void steady_state_unit_tests_problem_1() {
         "212  @@"
     };
     SteadyState ss(ss_list);
-
-
-    char b[SS_HEIGHT][SS_WIDTH];
-    std::array<std::string, SS_HEIGHT> board;
     int actual = -1;
 
 
@@ -150,129 +147,113 @@ void steady_state_unit_tests_problem_1() {
 
 
 
-    board = {
-        "       ",
-        "       ",
-        " 11    ",
-        " 12    ",
-        " 21    ",
-        "212    "
+    int b1[SS_HEIGHT][SS_WIDTH] = {
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 1, 1, 0, 0, 0, 0},
+        {0, 1, 2, 0, 0, 0, 0},
+        {0, 2, 1, 0, 0, 0, 0},
+        {2, 1, 2, 0, 0, 0, 0}
     };
-    populate_char_array(board, b);
-
-    actual = ss.query_steady_state(b);
+    actual = ss.query_steady_state(b1);
     std::cout << actual << std::endl;
     assert(actual == 1);
     std::cout << "Passed test 1!" << std::endl;
 
 
-    board = {
-        "       ",
-        "       ",
-        "  1    ",
-        " 12    ",
-        "121    ",
-        "212    "
+    int b2[SS_HEIGHT][SS_WIDTH] = {
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 1, 0, 0, 0, 0},
+        {0, 1, 2, 0, 0, 0, 0},
+        {1, 2, 1, 0, 0, 0, 0},
+        {2, 1, 2, 0, 0, 0, 0}
     };
-    populate_char_array(board, b);
-
-    actual = ss.query_steady_state(b);
+    actual = ss.query_steady_state(b2);
     std::cout << actual << std::endl;
     assert(actual == 2);
     std::cout << "Passed test 2!" << std::endl;
 
 
-    board = {
-        "       ",
-        "       ",
-        "  1    ",
-        " 12    ",
-        " 21    ",
-        "212  1 "
+    int b3[SS_HEIGHT][SS_WIDTH] = {
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 1, 0, 0, 0, 0},
+        {0, 1, 2, 0, 0, 0, 0},
+        {0, 2, 1, 0, 0, 0, 0},
+        {2, 1, 2, 0, 0, 1, 0}
     };
-    populate_char_array(board, b);
-
-    actual = ss.query_steady_state(b);
+    actual = ss.query_steady_state(b3);
     std::cout << actual << std::endl;
     assert(actual == 7);
     std::cout << "Passed test 3!" << std::endl;
 
 
-    board = {
-        "       ",
-        "       ",
-        "  1    ",
-        " 12    ",
-        " 21    ",
-        "212   1"
+    int b4[SS_HEIGHT][SS_WIDTH] = {
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 1, 0, 0, 0, 0},
+        {0, 1, 2, 0, 0, 0, 0},
+        {0, 2, 1, 0, 0, 0, 0},
+        {2, 1, 2, 0, 0, 0, 1}
     };
-    populate_char_array(board, b);
-
-    actual = ss.query_steady_state(b);
+    actual = ss.query_steady_state(b4);
     std::cout << actual << std::endl;
     assert(actual == 6);
     std::cout << "Passed test 4!" << std::endl;
 
 
-    board = {
-        "       ",
-        "  1    ",
-        "  1    ",
-        " 12    ",
-        " 21    ",
-        "212    "
+    int b5[SS_HEIGHT][SS_WIDTH] = {
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 1, 0, 0, 0, 0},
+        {0, 0, 1, 0, 0, 0, 0},
+        {0, 1, 2, 0, 0, 0, 0},
+        {0, 2, 1, 0, 0, 0, 0},
+        {2, 1, 2, 0, 0, 0, 0}
     };
-    populate_char_array(board, b);
-
-    actual = ss.query_steady_state(b);
+    actual = ss.query_steady_state(b5);
     std::cout << actual << std::endl;
     assert(actual == 3);
     std::cout << "Passed test 5!" << std::endl;
 
 
-    board = {
-        "       ",
-        "       ",
-        "  1    ",
-        " 12    ",
-        " 21    ",
-        "2121   "
+    int b6[SS_HEIGHT][SS_WIDTH] = {
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 1, 0, 0, 0, 0},
+        {0, 1, 2, 0, 0, 0, 0},
+        {0, 2, 1, 0, 0, 0, 0},
+        {2, 1, 2, 1, 0, 0, 0}
     };
-    populate_char_array(board, b);
-
-    actual = ss.query_steady_state(b);
+    actual = ss.query_steady_state(b6);
     std::cout << actual << std::endl;
     assert(actual == 4);
     std::cout << "Passed test 6!" << std::endl;
 
 
-    board = {
-        "       ",
-        "       ",
-        "  1    ",
-        " 12    ",
-        " 21  1 ",
-        "212  12"
+    int b7[SS_HEIGHT][SS_WIDTH] = {
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 1, 0, 0, 0, 0},
+        {0, 1, 2, 0, 0, 0, 0},
+        {0, 2, 1, 0, 0, 1, 0},
+        {2, 1, 2, 0, 0, 1, 2}
     };
-    populate_char_array(board, b);
-
-    actual = ss.query_steady_state(b);
+    actual = ss.query_steady_state(b7);
     std::cout << actual << std::endl;
     assert(actual == 6);
     std::cout << "Passed test 7!" << std::endl;
 
 
-    board = {
-        "       ",
-        "       ",
-        "  1    ",
-        " 12   2",
-        " 21   1",
-        "212  21"
+    int b8[SS_HEIGHT][SS_WIDTH] = {
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 1, 0, 0, 0, 0},
+        {0, 1, 2, 0, 0, 0, 2},
+        {0, 2, 1, 0, 0, 0, 1},
+        {2, 1, 2, 0, 0, 2, 1}
     };
-    populate_char_array(board, b);
-
-    actual = ss.query_steady_state(b);
+    actual = ss.query_steady_state(b8);
     std::cout << actual << std::endl;
     assert(actual == 7);
     std::cout << "Passed test 8!" << std::endl;
@@ -289,10 +270,6 @@ void steady_state_unit_tests_problem_2() {
         "  12122"
     };
     SteadyState ss(ss_list);
-
-
-    char b[SS_HEIGHT][SS_WIDTH];
-    std::array<std::string, SS_HEIGHT> board;
     int actual = -1;
 
 
@@ -301,65 +278,57 @@ void steady_state_unit_tests_problem_2() {
 
 
 
-    board = {
-        "       ",
-        "    2  ",
-        "  2 2  ",
-        "  1 1  ",
-        "  1 211",
-        "  12122"
+    int b1[SS_HEIGHT][SS_WIDTH] = {
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 2, 0, 0},
+        {0, 0, 2, 0, 2, 0, 0},
+        {0, 0, 1, 0, 1, 0, 0},
+        {0, 0, 1, 0, 2, 1, 1},
+        {0, 0, 1, 2, 1, 2, 2}
     };
-    populate_char_array(board, b);
-
-    actual = ss.query_steady_state(b);
+    actual = ss.query_steady_state(b1);
     std::cout << actual << std::endl;
     assert(actual == 5);
     std::cout << "Passed test 1!" << std::endl;
 
 
-    board = {
-        "    1  ",
-        "    2  ",
-        "  2 2  ",
-        "  1 1  ",
-        "  1 21 ",
-        "  12122"
+    int b2[SS_HEIGHT][SS_WIDTH] = {
+        {0, 0, 0, 0, 1, 0, 0},
+        {0, 0, 0, 0, 2, 0, 0},
+        {0, 0, 2, 0, 2, 0, 0},
+        {0, 0, 1, 0, 1, 0, 0},
+        {0, 0, 1, 0, 2, 1, 0},
+        {0, 0, 1, 2, 1, 2, 2}
     };
-    populate_char_array(board, b);
-
-    actual = ss.query_steady_state(b);
+    actual = ss.query_steady_state(b2);
     std::cout << actual << std::endl;
     assert(actual == 7);
     std::cout << "Passed test 2!" << std::endl;
 
 
-    board = {
-        "       ",
-        "    2  ",
-        "  2 2  ",
-        "  1 1  ",
-        "  1121 ",
-        "  12122"
+    int b3[SS_HEIGHT][SS_WIDTH] = {
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 2, 0, 0},
+        {0, 0, 2, 0, 2, 0, 0},
+        {0, 0, 1, 0, 1, 0, 0},
+        {0, 0, 1, 1, 2, 1, 0},
+        {0, 0, 1, 2, 1, 2, 2}
     };
-    populate_char_array(board, b);
-
-    actual = ss.query_steady_state(b);
+    actual = ss.query_steady_state(b3);
     std::cout << actual << std::endl;
     assert(actual == 4);
     std::cout << "Passed test 3!" << std::endl;
 
 
-    board = {
-        "       ",
-        "    2  ",
-        "  2 2  ",
-        "  1 1  ",
-        "  1 21 ",
-        " 112122"
+    int b4[SS_HEIGHT][SS_WIDTH] = {
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 2, 0, 0},
+        {0, 0, 2, 0, 2, 0, 0},
+        {0, 0, 1, 0, 1, 0, 0},
+        {0, 0, 1, 0, 2, 1, 0},
+        {0, 1, 1, 2, 1, 2, 2}
     };
-    populate_char_array(board, b);
-
-    actual = ss.query_steady_state(b);
+    actual = ss.query_steady_state(b4);
     std::cout << actual << std::endl;
     assert(actual == 2);
     std::cout << "Passed test 4!" << std::endl;

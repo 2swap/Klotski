@@ -3,9 +3,9 @@
 #include <iostream>
 #include <fstream>
 #include "json.hpp"
+#include "SteadyState.cpp"
 #include "C4Board.cpp"
 #include "Graph.cpp"
-#include "SteadyState.cpp"
 using json = nlohmann::json;
 
 Graph<C4Board*> graph;
@@ -33,7 +33,11 @@ int main(int argc, char** argv){
             graph.add_node(board, 0);
         }
     }*/
-    graph.add_node(new C4Board("444444326552252676226333366111773"), 0);
+    //graph.add_node(new C4Board("444444326552252676226333366111773"), 0);
+    //graph.add_node(new C4Board("233332213321221111"), 0);
+    //graph.add_node(new C4Board("43667555535331111"), 0);
+    graph.add_node(new C4Board("44444367666433136332711127155"), 0);
+    
     file.close();
 
     graph.expand_graph();
