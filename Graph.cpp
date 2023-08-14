@@ -15,6 +15,7 @@
 using json = nlohmann::json;
 
 double dist_bound = 1;
+bool two_dimensions = false;
 
 template <class T>
 class Node {
@@ -24,16 +25,11 @@ public:
      * @param t The data associated with the node.
      * @param dist The distance of the node from the root.
      */
-    Node(T t, int dist) : data(t), dist(dist) {
-        std::unordered_set<T> neighbor_nodes = data->get_neighbors();
-        for(auto it = neighbor_nodes.begin(); it != neighbor_nodes.end(); ++it){
-            neighbors.insert((*it)->get_hash());
-            delete *it;
-        }
-    }
+    Node(T* t, int dist) : data(t), dist(dist) {}
     int dist = 0;
     int solution_dist = -1;
-    T data;
+    bool highlight = false;
+    T* data;
     std::unordered_set<double> neighbors;
     bool flooded = false;
     double x = (double) rand() / (RAND_MAX), y = (double) rand() / (RAND_MAX), z = (double) rand() / (RAND_MAX);
@@ -64,7 +60,7 @@ public:
      * @param t The data associated with the node.
      * @param dist The distance of the node from the root.
      */
-    void add_node(T t, int dist){
+    void add_node(T* t, int dist){
         double hash = t->get_hash();
         if(nodes.find(hash) != nodes.end()) {
             delete t;
@@ -95,11 +91,21 @@ public:
             bfs_queue.pop();
             double id = pop.first;
             int dist = pop.second;
-            std::unordered_set<T> neighbor_nodes = nodes.find(id)->second.data->get_neighbors();
+            std::unordered_set<T*> neighbor_nodes = nodes.find(id)->second.data->get_neighbors();
             for(auto it = neighbor_nodes.begin(); it != neighbor_nodes.end(); ++it){
+                nodes.find(id)->second.neighbors.insert((*it)->get_hash());
                 add_node(*it, dist);
             }
         }
+    }
+
+    void highlight_nodes(Graph<T>& g){
+        int ct = 0;
+        for(auto it = nodes.begin(); it != nodes.end(); ++it){
+            double node_id = it->first;
+            if(g.node_exists(node_id)) {it->second.highlight = true;ct++;}
+        }
+        std::cout << "Nodes highlighted: " << ct << std::endl;
     }
 
     /**
@@ -109,7 +115,7 @@ public:
      */
     void connect_nodes(double node1, double node2) {
         // Check if both nodes exist in the graph
-        if (node_exists(node1) || node_exists(node2)) {
+        if (!node_exists(node1) || !node_exists(node2)) {
             return; // One or both nodes don't exist
         }
 
@@ -149,6 +155,8 @@ public:
                 }
             }
             for (double d : to_remove) {
+                std::cout << "Graph not sanitized!" << std::endl;
+                exit(1);
                 it->second.neighbors.erase(d);
             }
         }
@@ -223,7 +231,7 @@ public:
      * @return True if the node exists, false otherwise.
      */
     bool node_exists(double id){
-        return nodes.find(id) == nodes.end();
+        return nodes.find(id) != nodes.end();
     }
 
     /**
@@ -302,7 +310,8 @@ public:
                 double dx = node2->x - node->x;
                 double dy = node2->y - node->y;
                 double dz = node2->z - node->z;
-                double dist = std::sqrt(dx*dx+dy*dy+dz*dz);
+                double dist_sq = dx*dx+dy*dy+dz*dz;
+                double dist = two_dimensions?dist_sq+1:std::sqrt(dist_sq);
 
                 double invdist = (.3/(dist+.1))/dist;
                 double nx = invdist * dx;
@@ -324,7 +333,8 @@ public:
                 double dx = node->x - neighbor->x;
                 double dy = node->y - neighbor->y;
                 double dz = node->z - neighbor->z;
-                double dist = std::sqrt(dx*dx+dy*dy+dz*dz);
+                double dist_sq = dx*dx+dy*dy+dz*dz;
+                double dist = two_dimensions?dist_sq+1:std::sqrt(dist_sq);
                 double force = (.2*(dist-1))/dist;
                 force *= force;
                 double nx = force * dx;
@@ -351,6 +361,7 @@ public:
             node->x += node->vx;
             node->y += node->vy;
             node->z += node->vz;
+            if(two_dimensions)node->z = 0;
         }
 
         if(symmetrical){
@@ -386,6 +397,7 @@ public:
             node_info["y"] = it->second.y;
             node_info["z"] = it->second.z;
             node_info["representation"] = it->second.data->representation;
+            node_info["highlight"] = it->second.highlight;
 
             std::ostringstream oss;
             oss << std::setprecision(std::numeric_limits<double>::digits10 + 2) << it->first;

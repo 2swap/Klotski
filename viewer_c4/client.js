@@ -56,9 +56,9 @@ $(document).ready(async function() {
         var YELLOW      = "#ff0";
 
         function render_graph() {
-            graphctx.lineWidth = 0.5;
             for (const name in nodes) get_node_coordinates(name);
             for (const name in nodes) {
+                graphctx.lineWidth = 0.5;
                 const node = nodes[name];
                 for (const index in node.neighbors) {
                     const neighbor_name = node.neighbors[index];
@@ -66,6 +66,7 @@ $(document).ready(async function() {
                     if(typeof neighbor == "undefined") continue;
                     if(name < neighbor_name) continue;
                     graphctx.strokeStyle = node.representation.length%2==0?YELLOW:RED;
+                    if(node.highlight && neighbor.highlight) {graphctx.strokeStyle = "lime"; graphctx.lineWidth = 1;}
                     graphctx.beginPath();
                     graphctx.moveTo(node.screen_x, node.screen_y);
                     graphctx.lineTo(neighbor.screen_x, neighbor.screen_y);

@@ -1,257 +1,353 @@
 #pragma once
 
-#include <vector>
-#include <cstring>
-#include <cmath>
-#include <set>
-#include <unordered_set>
-#include "SteadyState.cpp"
-#include "GenericBoard.cpp"
+#include "C4Board.h"
+#include "SteadyState.h"
 
-enum C4Result {
-    RED,
-    YELLOW,
-    TIE
-};
-
-/*std::array<std::string, SS_HEIGHT> ss_list = {
-    "   |@  ",
-    "   |2  ",
-    "  2|2  ",
-    "  1|1  ",
-    "  1|21@",
-    "  12122"
-};*/
-std::array<std::string, SS_HEIGHT> ss_list = {
-    "       ",
-    "       ",
-    " #1  ++",
-    " 12  ==",
-    "#21  --",
-    "212  @@"
-};
-SteadyState ss(ss_list);
-
-class C4Board : public GenericBoard {
-public:
-
-    const int BOARD_HEIGHT = SS_HEIGHT;
-    const int BOARD_WIDTH = SS_WIDTH;
-
-    std::string representation;
-    int board[SS_HEIGHT][SS_WIDTH];
-    std::string blurb = "A connect 4 board.";
-
-    bool symmetrical = false;
-
-    C4Board(std::string representation) : representation(representation) {
-        // Allocate memory for the board array
-        for (int i = 0; i < BOARD_HEIGHT; ++i) {
-            for (int j = 0; j < BOARD_WIDTH; ++j) {
-                board[i][j] = 0;
-            }
+C4Board::C4Board(std::string representation) {
+    // Allocate memory for the board array
+    for (int i = 0; i < BOARD_HEIGHT; ++i) {
+        for (int j = 0; j < BOARD_WIDTH; ++j) {
+            board[i][j] = 0;
         }
-
-        fill_board_from_string();
     }
 
-    // Destructor to clean up dynamically allocated memory
-    /*~C4Board() {
-        for (int i = 0; i < BOARD_HEIGHT; ++i) {
-            delete[] board[i];
-        }
-        delete[] board;
-    }currently on stack, not heap.*/
+    fill_board_from_string(representation);
+}
 
-    void print() override {
-        std::cout << representation << std::endl;
+void C4Board::print() {
+    std::cout << representation << std::endl;
+    for(int y=0;y<BOARD_HEIGHT;y++){
+        for(int x=0;x<BOARD_WIDTH;x++){
+            std::cout << board[y][x];
+        }
+        std::cout << std::endl;
+    }
+}
+
+int C4Board::random_legal_move() const {
+    std::vector<int> legal_columns;
+
+    for (int col = 0; col < BOARD_WIDTH; ++col) {
+        if (board[0][col] == 0) {
+            legal_columns.push_back(col);
+        }
     }
 
-    bool is_solution() override {
-        // check horizontally
-        for (int row = 0; row < BOARD_HEIGHT; row++) {
-            for (int col = 0; col < BOARD_WIDTH - 3; col++) {
-                int player = board[row][col];
-                if (player != 0 && player == board[row][col+1] && player == board[row][col+2] && player == board[row][col+3]) {
-                    return true;
-                }
-            }
-        }
-        
-        // check vertically
-        for (int row = 0; row < BOARD_HEIGHT - 3; row++) {
-            for (int col = 0; col < BOARD_WIDTH; col++) {
-                int player = board[row][col];
-                if (player != 0 && player == board[row+1][col] && player == board[row+2][col] && player == board[row+3][col]) {
-                    return true;
-                }
-            }
-        }
-        
-        // check diagonals
-        for (int row = 0; row < BOARD_HEIGHT - 3; row++) {
-            for (int col = 0; col < BOARD_WIDTH - 3; col++) {
-                int player = board[row][col];
-                if (player != 0 && player == board[row+1][col+1] && player == board[row+2][col+2] && player == board[row+3][col+3]) {
-                    return true;
-                }
-            }
-        }
-        for (int row = 3; row < BOARD_HEIGHT; row++) {
-            for (int col = 0; col < BOARD_WIDTH - 3; col++) {
-                int player = board[row][col];
-                if (player != 0 && player == board[row-1][col+1] && player == board[row-2][col+2] && player == board[row-3][col+3]) {
-                    return true;
-                }
-            }
-        }
-        
-        // no winner
-        return false;
+    if (legal_columns.empty()) {
+        return -1; // No legal columns available
     }
 
-    double board_specific_hash() override {
-        double a = 1;
-        double hash_in_progress = 0;
-        for (int i = 0; i < BOARD_HEIGHT; i++) {
-            for (int j = 0; j < BOARD_WIDTH; j++) {
-                hash_in_progress += board[i][j] * a;
-                a *= 1.21813947;
-            }
+    int random_index = rand() % legal_columns.size();
+    return legal_columns[random_index]+1;
+}
+
+C4Result C4Board::who_won() {
+    int lastRow = -1;
+    int lastCol = -1;
+
+    // Find the column and row of the last piece played
+    if (representation.empty()) {
+        return INCOMPLETE;
+    }else{
+        int lastPiece = representation.back() - '0';
+        lastCol = lastPiece - 1;
+        lastRow = 0;
+        while (lastRow < BOARD_HEIGHT && board[lastRow][lastCol] == 0) {
+            lastRow++;
         }
-        return hash_in_progress;
     }
 
-    double board_specific_reverse_hash() override {
-        double a = 1;
-        double hash_in_progress = 0;
-        for (int i = 0; i < BOARD_HEIGHT; i++) {
-            for (int j = 0; j < BOARD_WIDTH; j++) {
-                hash_in_progress += board[i][BOARD_WIDTH-1-j] * a;
-                a *= 1.21813947;
-            }
-        }
-        return hash_in_progress;
+    int player = board[lastRow][lastCol];
+    C4Result win = static_cast<C4Result>(player);
+
+    // Check horizontally
+    int count = 1;
+    for (int x = lastCol+1; x<BOARD_WIDTH; x++) {
+        if (board[lastRow][x] != player) break;
+        count++;
+        if(count>=4) return win;
+    }
+    for (int x = lastCol-1; x>=0; x--) {
+        if (board[lastRow][x] != player) break;
+        count++;
+        if(count>=4) return win;
     }
 
-    void fill_board_from_string()
-    {
-        // Initialize the board to all empty slots
-        for (int i = 0; i < BOARD_HEIGHT; i++) {
-            for (int j = 0; j < BOARD_WIDTH; j++) {
-                board[i][j] = 0;
-            }
+    // Check vertically
+    count = 0;
+    if(lastRow<3){
+        bool all_match = true;
+        for (int dy = 1; dy<4; dy++) {
+            all_match &= board[lastRow+dy][lastCol] == player;
         }
+        if(all_match)
+            return win;
+    }
+
+    // Check diagonals
+    count = 1;
+    for (int dx = 1, dy = 1; dx < 4 && dy < 4; dx++, dy++) {
+        if (lastRow + dy >= BOARD_HEIGHT || lastCol + dx >= BOARD_WIDTH || board[lastRow + dy][lastCol + dx] != player) {
+            break;
+        }
+        count++;
+        if (count >= 4) return win;
+    }
+    for (int dx = -1, dy = -1; dx > -4 && dy > -4; dx--, dy--) {
+        if (lastRow + dy < 0 || lastCol + dx < 0 || board[lastRow + dy][lastCol + dx] != player) {
+            break;
+        }
+        count++;
+        if (count >= 4) return win;
+    }
+
+    // Check anti-diagonals
+    count = 1;
+    for (int dx = 1, dy = -1; dx < 4 && dy > -4; dx++, dy--) {
+        if (lastRow + dy < 0 || lastCol + dx >= BOARD_WIDTH || board[lastRow + dy][lastCol + dx] != player) {
+            break;
+        }
+        count++;
+        if (count >= 4) return win;
+    }
+    for (int dx = -1, dy = 1; dx > -4 && dy < 4; dx--, dy++) {
+        if (lastRow + dy >= BOARD_HEIGHT || lastCol + dx < 0 || board[lastRow + dy][lastCol + dx] != player) {
+            break;
+        }
+        count++;
+        if (count >= 4) return win;
+    }
+
+    // Check for a tie
+    if (representation.size() == BOARD_HEIGHT*BOARD_WIDTH) {
+        return TIE;
+    }
+
+    // No winner yet
+    return INCOMPLETE;
+}
+
+bool C4Board::is_solution() {
+    C4Result winner = who_won();
+    return winner == RED || winner == YELLOW;
+}
+
+double C4Board::board_specific_hash() {
+    double a = 1;
+    double hash_in_progress = 0;
+    for (int i = 0; i < BOARD_HEIGHT; i++) {
+        for (int j = 0; j < BOARD_WIDTH; j++) {
+            hash_in_progress += board[i][j] * a;
+            a *= 1.21813947;
+        }
+    }
+    return hash_in_progress;
+}
+
+double C4Board::board_specific_reverse_hash() {
+    double a = 1;
+    double hash_in_progress = 0;
+    for (int i = 0; i < BOARD_HEIGHT; i++) {
+        for (int j = 0; j < BOARD_WIDTH; j++) {
+            hash_in_progress += board[i][BOARD_WIDTH-1-j] * a;
+            a *= 1.21813947;
+        }
+    }
+    return hash_in_progress;
+}
+
+void C4Board::fill_board_from_string(std::string rep)
+{
+    // Initialize the board to all empty slots
+    for (int i = 0; i < BOARD_HEIGHT; i++) {
+        for (int j = 0; j < BOARD_WIDTH; j++) {
+            board[i][j] = 0;
+        }
+    }
+
+    // Iterate through the moves and fill the board
+    for (int i = 0; i < rep.size(); i++) {
+        play_piece(rep[i]-'0');
+    }
+}
+
+int C4Board::countChar(std::string str, char ch) {
+    int count = 0;
     
-        // Iterate through the moves and fill the board
-        int player = 1;
-        for (int i = 0; i < representation.size(); i++) {
-            int col = representation[i] - '0' - 1; // convert from char to int
-            for (int row = BOARD_HEIGHT - 1; row >= 0; row--) {
-                if (board[row][col] == 0) {
-                    board[row][col] = player;
-                    break;
-                }
-            }
-            player = 3 - player; // switch player between 1 and 2
+    for(int i = 0; i < str.size(); i++) {
+        if(str[i] == ch) {
+            count++;
         }
-    }
-
-    int countChar(std::string str, char ch) {
-        int count = 0;
-        
-        for(int i = 0; i < str.size(); i++) {
-            if(str[i] == ch) {
-                count++;
-            }
-        }
-        
-        return count;
     }
     
-    C4Board* remove_piece(){
-        std::string rep = representation.substr(0, representation.size()-1);
-        C4Board* new_board = new C4Board(rep);
-        return new_board;
-    }
+    return count;
+}
 
-    C4Board* move_piece(int piece){
-        C4Board* new_board = new C4Board(representation+std::to_string(piece));
-        return new_board;
-    }
+C4Board* C4Board::remove_piece(){
+    std::string rep = representation.substr(0, representation.size()-1);
+    C4Board* new_board = new C4Board(rep);
+    return new_board;
+}
 
-    C4Result who_is_winning(){
-        char command[150];
-        std::sprintf(command, "echo %s | ~/Unduhan/Fhourstones/SearchGame", representation.c_str());
-        std::cout << "Calling fhourstones on " << command << "... ";
-        FILE* pipe = popen(command, "r");
-        if (!pipe) {
-            exit(1);
-        }
-        char buffer[4096];
-        std::string result = "";
-        while(!feof(pipe)) {
-            if(fgets(buffer, 4096, pipe) != NULL) {
-                result += buffer;
-            }
-        }
-        pclose(pipe);
-        if (result.find("(=)") != std::string::npos){
-            std::cout << "Tie!" << std::endl;
-            return TIE;
-        }
-        else if ((result.find("(+)") != std::string::npos) == (representation.size() % 2 == 0)){
-            std::cout << "Red!" << std::endl;
-            return RED;
-        }
-        else{
-            std::cout << "Yellow!" << std::endl;
-            return YELLOW;
+void C4Board::play_piece(int piece){
+    int x = piece - 1; // convert from char to int
+    for (int y = BOARD_HEIGHT - 1; y >= 0; y--) {
+        if (board[y][x] == 0) {
+            board[y][x] = representation.size()%2+1;
+            break;
         }
     }
+    representation+=std::to_string(piece);
+}
 
-    void add_all_winning_fhourstones(std::unordered_set<C4Board*>& neighbors){
-        for (int i = 1; i <= BOARD_WIDTH; i++) {
-            if (countChar(representation, '0'+i) < BOARD_HEIGHT) {
-                C4Board* moved = move_piece(i);
-                if(moved->who_is_winning() == RED){
-                    neighbors.insert(moved);
-                } else {
-                    delete moved;
-                }
-            }
-        }
+C4Board* C4Board::child(int piece){
+    C4Board* new_board = new C4Board(representation+std::to_string(piece));
+    return new_board;
+}
+
+C4Result C4Board::who_is_winning(int& work) {
+    C4Result cachedResult;
+    auto it = cache.find(representation);
+    if (it != cache.end()) {
+        std::cout << "Using cached result..." << std::endl;
+        return it->second;
     }
 
-    void add_all_legal_children(std::unordered_set<C4Board*>& neighbors){
-        for (int i = 1; i <= BOARD_WIDTH; i++) {
-            if (countChar(representation, '0'+i) < BOARD_HEIGHT) {
-                C4Board* moved = move_piece(i);
+    char command[150];
+    std::sprintf(command, "echo %s | ~/Unduhan/Fhourstones/SearchGame", representation.c_str());
+    std::cout << "Calling fhourstones on " << command << "... ";
+    FILE* pipe = popen(command, "r");
+    if (!pipe) {
+        exit(1);
+    }
+    char buffer[4096];
+    std::string result = "";
+    while (!feof(pipe)) {
+        if (fgets(buffer, 4096, pipe) != NULL) {
+            result += buffer;
+        }
+    }
+    pclose(pipe);
+
+    C4Result gameResult;
+    size_t workPos = result.find("work = ");
+    if (workPos != std::string::npos) {
+        work = std::stoi(result.substr(workPos + 7, result.find('\n', workPos) - workPos - 7));
+    } else {
+        work = -1; // Set work to a default value if not found
+    }
+
+    if (result.find("(=)") != std::string::npos) {
+        std::cout << "Tie!" << std::endl;
+        gameResult = TIE;
+    } else if ((result.find("(+)") != std::string::npos) == (representation.size() % 2 == 0)) {
+        std::cout << "Red!" << std::endl;
+        gameResult = RED;
+    } else {
+        std::cout << "Yellow!" << std::endl;
+        gameResult = YELLOW;
+    }
+
+    cache[representation] = gameResult;
+    return gameResult;
+}
+
+void C4Board::add_all_winning_fhourstones(std::unordered_set<C4Board*>& neighbors){
+    for (int i = 1; i <= BOARD_WIDTH; i++) {
+        if (countChar(representation, '0'+i) < BOARD_HEIGHT) {
+            C4Board* moved = child(i);
+            int work = -1;
+            if(moved->who_is_winning(work) == RED){
+                std::cout << moved->representation << std::endl;
                 neighbors.insert(moved);
+            } else {
+                delete moved;
             }
         }
     }
+}
 
-    void add_only_child_steady_state(std::unordered_set<C4Board*>& neighbors){
-        int x = ss.query_steady_state(board);
-        C4Board* moved = move_piece(x);
-        neighbors.insert(moved);
-    }
+int C4Board::get_best_winning_fhourstones() {
+    int lowest_work = INT_MAX;
+    int lowest_work_move = -1;
 
-    std::unordered_set<C4Board*> get_neighbors(){
-        std::unordered_set<C4Board*> neighbors;
-
-        if (is_solution()) {
-            return neighbors;
+    for (int i = 1; i <= BOARD_WIDTH; i++) {
+        if (countChar(representation, '0' + i) < BOARD_HEIGHT) {
+            C4Board* moved = child(i);
+            int work = -1;
+            C4Result winner = moved->who_is_winning(work);
+            if (winner == RED && work < lowest_work) {
+                lowest_work = work;
+                lowest_work_move = i;
+            }
+            delete moved;
         }
+    }
+    return lowest_work_move;
+}
 
-        add_all_winning_fhourstones(neighbors);
-        /*if(representation.size() % 2 == 1){
-            add_only_child_steady_state(neighbors);
-        }else{
-            add_all_legal_children(neighbors);
-        }*/
+void C4Board::add_best_winning_fhourstones(std::unordered_set<C4Board*>& neighbors) {
+    C4Board* moved = child(get_best_winning_fhourstones());
+    std::cout << moved->representation << std::endl;
+    neighbors.insert(moved);
+}
 
+void C4Board::add_all_legal_children(std::unordered_set<C4Board*>& neighbors){
+    for (int i = 1; i <= BOARD_WIDTH; i++) {
+        if (countChar(representation, '0'+i) < BOARD_HEIGHT) {
+            C4Board* moved = child(i);
+            std::cout << moved->representation << std::endl;
+            neighbors.insert(moved);
+        }
+    }
+}
+
+void C4Board::add_only_child_steady_state(const SteadyState& ss, std::unordered_set<C4Board*>& neighbors){
+    int x = ss.query_steady_state(board);
+    C4Board* moved = child(x);
+    std::cout << moved->representation << std::endl;
+    neighbors.insert(moved);
+}
+
+std::unordered_set<C4Board*> C4Board::get_neighbors(){
+    std::unordered_set<C4Board*> neighbors;
+
+    if (is_solution()) {
         return neighbors;
     }
-};
+
+    switch (mode){
+        case UNION_WEAK:
+            add_all_winning_fhourstones(neighbors);
+            break;
+        case SIMPLE_WEAK:
+            if(representation.size() % 2 == 0){
+                add_only_child_steady_state(ss_simple_weak, neighbors);
+            }else{
+                add_all_legal_children(neighbors);
+            }
+            break;
+        case TRIM_STEADY_STATES:
+            if(representation.size() % 2 == 1){ // if it's yellow's move
+                SteadyState ss;
+                std::cout << "a" << std::endl;
+                bool found = find_steady_state(representation, 2500000, ss);
+                std::cout << "b" << std::endl;
+                if(found){
+                    std::cout << "found a steady state!" << std::endl;
+                    break;
+                }
+                else{
+                    std::cout << "Adding children as yellow!" << std::endl;
+                    add_all_legal_children(neighbors);
+                }
+            }else{ // red's move
+                std::cout << "Making a good move as red." << std::endl;
+                add_best_winning_fhourstones(neighbors);
+            }
+            break;
+    }
+
+    std::cout << "I have " << neighbors.size() << " neighbors!" << std::endl;
+    return neighbors;
+}
