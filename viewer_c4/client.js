@@ -5,7 +5,7 @@ const graphctx = graphcanvas.getContext(`2d`);
 
 let tick = 0;
 let ox = 0; let oy = 100; let zoom = 1;
-let alpha = 0;
+let alpha = 0, beta=0;
 let graphbutton = false;
 //var save_start_board = board_string;
 
@@ -127,8 +127,12 @@ $(document).ready(async function() {
 
         function get_node_coordinates (hash) {
             var node = nodes[hash];
-            node.screen_x = (node.x*Math.cos(alpha)+node.z*Math.sin(alpha) - ox) / zoom + w / 2;
-            node.screen_y = (node.y - oy) / zoom + h / 2;
+            var rotatedX = node.x * Math.cos(alpha) + node.z * Math.sin(alpha);
+            var rotatedZ = -node.x * Math.sin(alpha) + node.z * Math.cos(alpha);
+            var rotatedY = rotatedZ * Math.sin(beta) + node.y * Math.cos(beta);
+
+            node.screen_x = (rotatedX - ox) / zoom + w / 2;
+            node.screen_y = (rotatedY - oy) / zoom + h / 2;
         }
 
         function get_closest_node_to (coords) {
@@ -199,6 +203,8 @@ $(document).ready(async function() {
             if (c == 40) oy += zoom * 100;
             if (c == 65) alpha -= .04;
             if (c == 68) alpha += .04;
+            if (c == 83) beta -= .04;
+            if (c == 87) beta += .04;
             if (c == 66) config.blurbs.select = (config.blurbs.select+1)%config.blurbs.options.length;
             if (c == 82) board_string = save_start_board;
             render();

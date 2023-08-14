@@ -330,9 +330,7 @@ std::unordered_set<C4Board*> C4Board::get_neighbors(){
         case TRIM_STEADY_STATES:
             if(representation.size() % 2 == 1){ // if it's yellow's move
                 SteadyState ss;
-                std::cout << "a" << std::endl;
-                bool found = find_steady_state(representation, 2500000, ss);
-                std::cout << "b" << std::endl;
+                bool found = find_steady_state(representation, 50000, ss, true);
                 if(found){
                     std::cout << "found a steady state!" << std::endl;
                     break;

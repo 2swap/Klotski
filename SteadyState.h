@@ -33,4 +33,33 @@ public:
     void print() const;
     char steadystate[SS_HEIGHT][SS_WIDTH];
 
+
+    void write_to_file(const std::string& filename) const {
+        std::ofstream file(filename);
+        if (file.is_open()) {
+            for (int row = 0; row < SS_HEIGHT; ++row) {
+                for (int col = 0; col < SS_WIDTH; ++col) {
+                    file << steadystate[row][col];
+                }
+                file << std::endl;
+            }
+        }
+    }
+
+    void read_from_file(const std::string& filename) {
+        std::ifstream file(filename);
+        if (file.is_open()) {
+            for (int row = 0; row < SS_HEIGHT; ++row) {
+                for (int col = 0; col < SS_WIDTH; ++col) {
+                    char character;
+                    if (file.get(character)) {
+                        steadystate[row][col] = character;
+                    } else {
+                        std::cout << "STEADYSTATE CACHE READ ERROR" << std::endl;
+                        exit(1);
+                    }
+                }
+            }
+        }
+    }
 };

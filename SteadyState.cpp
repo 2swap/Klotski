@@ -95,9 +95,9 @@ int SteadyState::query_steady_state(const int (&b)[SS_HEIGHT][SS_WIDTH]) const {
             if (next_it == priorities.end()) {
                 x = static_cast<int>(std::distance(priorities.begin(), it));
                 break;
-            } else {
+            }/* else {
                 return -6;
-            }
+            }*/
         }
     }
 
@@ -117,37 +117,22 @@ int SteadyState::query_steady_state(const int (&b)[SS_HEIGHT][SS_WIDTH]) const {
 }
 
 void SteadyState::mutate() {
-    bool add_miai = rand()%5 == 0;
-    if(add_miai){
-        //drop a miai pair
+    int r = rand()%6;
+    if(r<2){
+        //drop a miai
         char c = rand()%2==1?'@':'#';
-        for (int lx = 0; lx < SS_WIDTH; ++lx) {
-            for (int ly = SS_HEIGHT - 1; ly >= 0; --ly) {
-                if(steadystate[ly][lx] == c) add_miai = false;
+        int x = rand()%SS_WIDTH;
+        int y = SS_HEIGHT-1;
+        for(y; y >= 0; y--)
+            if(steadystate[y][x] != '1' && steadystate[y][x] != '2'){
+                break;
             }
-        }
-        if(add_miai){
-            int attempts = 0;
-            for(int i = 0; i < 2 && attempts < 10; i++){
-                int x = rand()%SS_WIDTH;
-                int y = SS_HEIGHT-1;
-                for(y; y >= 0; y--)
-                    if(steadystate[y][x] != '1' && steadystate[y][x] != '2'){
-                        break;
-                    }
-                if(y==-1 || is_miai(steadystate[y][x])){
-                    i--;
-                    attempts++;
-                } else {
-                    steadystate[y][x] = c;
-                }
-            }
-        }
+        if(y>=0 && !is_miai(steadystate[y][x])) steadystate[y][x] = c;
     }
 
 
 
-    if(!add_miai) {
+    else if(r==2) {
         // Generate random coordinates until a non-disk cell is found
         int x, y;
         do {
@@ -156,23 +141,22 @@ void SteadyState::mutate() {
         } while (steadystate[y][x] == '1' || steadystate[y][x] == '2');
 
         // Choose a random replacement character from miai, priority_list, and claims
-        std::vector<char> replacement_chars = {' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', '|', '+', '=', '-'};
+        std::vector<char> replacement_chars = {'+', '=', '-'};
 
         char c = replacement_chars[rand()%replacement_chars.size()];
 
-        char old = steadystate[y][x];
-
-        if(is_miai(old)){
-            for (int lx = 0; lx < SS_WIDTH; ++lx) {
-                for (int ly = 0; ly < SS_HEIGHT; ++ly) {
-                    if(steadystate[ly][lx] == old)
-                        steadystate[ly][lx] = c;
-                }
-            }
-        }
-
         // Replace the character at the chosen coordinates
         steadystate[y][x] = c;
+    }
+
+
+
+    else {
+        int x = rand()%SS_WIDTH;
+        for (int y = 0; y < SS_HEIGHT; ++y) {
+            if(steadystate[y][x] != '1' && steadystate[y][x] != '2')
+                steadystate[y][x] = r==5?'|':' ';
+        }
     }
 }
 
@@ -201,7 +185,6 @@ C4Result SteadyState::play_one_game(const std::string& boardString) const {
 
 void SteadyState::print() const {
     for (int row = 0; row < SS_HEIGHT; ++row) {
-        std::cout << row << "     ";
         for (int col = 0; col < SS_WIDTH; ++col) {
             std::cout << steadystate[row][col] << ' ';
         }
@@ -232,59 +215,79 @@ SteadyState create_random_steady_state(const int (&initial_board)[SS_HEIGHT][SS_
     return steadyState;
 }
 
-bool find_steady_state(std::string rep, int num_games, SteadyState& ss) {
+bool find_steady_state(std::string rep, int num_games, SteadyState& ss, bool verbose) {
     std::cout << "Searching for a steady state..." << std::endl;
     std::vector<SteadyState> steady_states;
-    std::vector<int> bests;
 
     C4Board b(rep);
 
+    // Convert the hash to a string
+    std::ostringstream ss_hash_stream;
+    ss_hash_stream << std::fixed << std::setprecision(std::numeric_limits<double>::max_digits10) << b.get_hash();
+    std::string ss_hash = ss_hash_stream.str();
+
+    // Check if a cached steady state file exists and read from it
+    std::string cachedFilename = "steady_states/" + ss_hash + ".ss";
+    if (std::ifstream(cachedFilename)) {
+        ss.read_from_file(cachedFilename);
+        std::cout << "Loaded cached steady state from file." << std::endl;
+        return true;
+    }
+
+    int best = 1;
+
     // Generate a lot of random steady states
-    int batch_size = 100;
-    int num_batches = 5;
     int verification = 100000;
-    for (int i = 0; i < batch_size*num_batches; ++i) {
+    for (int i = 0; i < 500; ++i) {
         steady_states.push_back(create_random_steady_state(b.board));
-        bests.push_back(1);
     }
     int games_played = 0;
 
     while(true){
-        int consecutive_wins = 0;
-        int batch = rand() % num_batches;
-        int org = rand() % batch_size;
-        int idx = org+batch_size*batch; // Randomly select a steady state
+        double consecutive_wins = 0;
+        int idx = rand()%steady_states.size(); // Randomly select a steady state
         while (true) {
             C4Result col = steady_states[idx].play_one_game(rep);
-            if(games_played++>num_games+verification) return false;
+            games_played++;
 
             if (col != RED) { // If it loses
-                double n = 20*consecutive_wins/bests[batch] + consecutive_wins/100;
+                double n = 20*consecutive_wins/best;
                 for (int i = 0; i < n; ++i) {
-                    int random_idx = rand() % batch_size + batch_size*batch;
+                    int random_idx = rand() % steady_states.size();
                     for(int y = 0; y < SS_HEIGHT; y++){
                         for(int x = 0; x < SS_WIDTH; x++){
                             steady_states[random_idx].steadystate[y][x] = steady_states[idx].steadystate[y][x];
                         }
                     }
-                    for(int k = 0; k < n-2; k++) steady_states[random_idx].mutate();
+                    for(int k = 0; k < n/5; k++) steady_states[random_idx].mutate();
                 }
                 for(int j = 0; j < n; j++){
-                    int random_idx = rand() % batch_size + batch_size*batch;
+                    int random_idx = rand() % steady_states.size();
                     int y = rand()%SS_HEIGHT;
                     int x = rand()%SS_WIDTH;
                     if(!is_miai(steady_states[random_idx].steadystate[y][x]) && !is_miai(steady_states[idx].steadystate[y][x]))
                         steady_states[random_idx].steadystate[y][x] = steady_states[idx].steadystate[y][x];
                 }
-                if(bests[batch] < consecutive_wins){
-                    bests[batch] = consecutive_wins;
+                if(best < consecutive_wins){
+                    best = consecutive_wins;
+                    games_played = 0;
+                    if(verbose){
+                        std::cout << consecutive_wins << " consecutive wins" << std::endl;
+                        steady_states[idx].print();
+                    }
                 }
+                if(games_played>num_games+verification) return false;
                 break;
             } else {
                 if(consecutive_wins > verification){
-                    std::cout << consecutive_wins << " consecutive wins" << std::endl;
-                    steady_states[idx].print();
+                    std::cout << "Steady state found after " << games_played << " games." << std::endl;
+                    if(verbose){
+                        std::cout << consecutive_wins << " consecutive wins" << std::endl;
+                        steady_states[idx].print();
+                    }
                     ss = steady_states[idx];
+                    std::string filename = "steady_states/" + ss_hash + ".ss";
+                    steady_states[idx].write_to_file(filename);
                     return true;
                 }
                 consecutive_wins++;
@@ -542,8 +545,42 @@ void steady_state_unit_tests_problem_3() {
     std::cout << "Passed test 1!" << std::endl;
 }
 
+void steady_state_unit_tests_problem_4() {
+    // Define the initial board configuration
+    std::array<std::string, SS_HEIGHT> ss_list = {
+        " =+2++|",
+        " @211||",
+        " 11221|",
+        " 22112|",
+        "-21212|",
+        "112112|"
+    };
+    SteadyState ss(ss_list);
+    int actual = -1;
+
+
+
+
+
+
+
+    int b1[SS_HEIGHT][SS_WIDTH] = {
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0},
+        {0, 0, 0, 0, 0, 0, 0}
+    };
+    actual = ss.query_steady_state(b1);
+    std::cout << actual << std::endl;
+    assert(actual == -2);
+    std::cout << "Passed test 1!" << std::endl;
+}
+
 void steady_state_unit_tests(){
     steady_state_unit_tests_problem_1();
     steady_state_unit_tests_problem_2();
     steady_state_unit_tests_problem_3();
+    //steady_state_unit_tests_problem_4();
 }

@@ -2,4 +2,5 @@ viewer_c4/data/*
 viewer_c4/data.json
 viewer_klotski/data/*
 viewer_klotski/data.json
+steady_states/*
 a.out
