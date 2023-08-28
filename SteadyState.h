@@ -1,5 +1,7 @@
 #pragma once
 
+class C4Board;
+
 #include <unordered_set>
 #include <list>
 #include <array>
@@ -24,7 +26,7 @@ class SteadyState {
 public:
     SteadyState();
     SteadyState(const std::array<std::string, C4_HEIGHT>& chars);
-    int query_steady_state(const int (&b)[C4_HEIGHT][C4_WIDTH]) const;
+    int query_steady_state(const C4Board board) const;
     void mutate();
     C4Result play_one_game(const std::string& boardString, std::string& defeat, const std::string& prior_defeat) const;
     void print() const;

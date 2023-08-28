@@ -69,6 +69,8 @@ public:
     C4Board* child(int piece);
     C4Result who_is_winning(int& work);
     int get_best_winning_fhourstones();
+    int get_human_winning_fhourstones();
+    int get_centermost_winning_fhourstones();
     void add_best_winning_fhourstones(std::unordered_set<C4Board*>& neighbors);
     void add_all_winning_fhourstones(std::unordered_set<C4Board*>& neighbors);
     void add_all_legal_children(std::unordered_set<C4Board*>& neighbors);

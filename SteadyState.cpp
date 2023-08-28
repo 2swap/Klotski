@@ -25,11 +25,34 @@ SteadyState::SteadyState(const std::array<std::string, C4_HEIGHT>& chars) {
     populate_char_array(chars, steadystate);
 }
 
-int SteadyState::query_steady_state(const int (&b)[C4_HEIGHT][C4_WIDTH]) const {
+int SteadyState::query_steady_state(const C4Board board) const {
+    int b[C4_HEIGHT][C4_WIDTH];
+    for (int i = 0; i < C4_HEIGHT; ++i) {
+        for (int j = 0; j < C4_WIDTH; ++j) {
+            b[i][j] = board.board[i][j];
+        }
+    }
     // Given a board, use the steady state to determine where to play.
     // Return the x position of the row to play in.
 
-    // First Priority: Obey Miai
+    // First Priority: Make 4 in a row!
+    //drop a red piece in each column and see if it wins
+    for (int x = 0; x < C4_WIDTH; ++x) {
+        C4Board board_copy = board;
+        board_copy.play_piece(x+1);
+        if(board_copy.who_won() == RED) return x+1;
+    }
+
+    // Second Priority: Block opponent lines of 4!
+    //drop a yellow piece in each column and see if it wins
+    for (int x = 0; x < C4_WIDTH; ++x) {
+        C4Board board_copy = board;
+        board_copy.play_piece((x+2)%C4_WIDTH);
+        board_copy.play_piece(x+1);
+        if(board_copy.who_won() == YELLOW) return x+1;
+    }
+
+    // Third Priority: Obey Miai
     std::unordered_map<char, int> alph;
     for (int x = 0; x < C4_WIDTH; ++x) {
         for (int y = 0; y < C4_HEIGHT; ++y) {
@@ -68,7 +91,7 @@ int SteadyState::query_steady_state(const int (&b)[C4_HEIGHT][C4_WIDTH]) const {
         }
     }
 
-    // Second Priority: Claimeven and Claimodd
+    // Fourth Priority: Claimeven and Claimodd
     // First, check there aren't 2 available claimparities
     int return_x = -1;
     std::vector<char> priorities(C4_WIDTH, 'x');
@@ -88,7 +111,7 @@ int SteadyState::query_steady_state(const int (&b)[C4_HEIGHT][C4_WIDTH]) const {
     }
     if(return_x != -1) return return_x+1;
 
-    // Third Priority: Priority Markings
+    // Fifth Priority: Priority Markings
     int x = -1;
     for (char c : priority_list) {
         auto it = std::find(priorities.begin(), priorities.end(), c);
@@ -186,7 +209,7 @@ C4Result SteadyState::play_one_game(const std::string& boardString, std::string&
         if(winner != INCOMPLETE) {defeat = defeat_; return winner;}
 
         // Query the steady state and play the determined disk
-        int columnToPlay = query_steady_state(board.board);
+        int columnToPlay = query_steady_state(board);
 
         if (columnToPlay < 0) {
             return TIE; // TODO this should forfeit
@@ -268,6 +291,7 @@ bool find_steady_state(std::string rep, int num_games, SteadyState& ss, bool ver
             games_played++;
 
             if (col != RED) { // If it loses
+                std::cout << consecutive_wins << " consecutive wins" << std::endl;
                 double n = consecutive_wins/2;
                 for (int i = 0; i < n; ++i) {
                     int random_idx = rand() % steady_states.size();
@@ -288,15 +312,11 @@ bool find_steady_state(std::string rep, int num_games, SteadyState& ss, bool ver
                 if(best < consecutive_wins){
                     best = consecutive_wins;
                     games_played = 0;
-                    if(verbose){
-                        std::cout << consecutive_wins << " consecutive wins" << std::endl;
-                        steady_states[idx].print();
-                    }
                 }
                 if(games_played>num_games+verification) return false;
                 break;
             } else {
-                if(consecutive_wins % 100==99 && verbose){
+                if(consecutive_wins % 1000==999 && verbose){
                     std::cout << consecutive_wins << " consecutive wins" << std::endl;
                     steady_states[idx].print();
                 }
@@ -342,112 +362,56 @@ void steady_state_unit_tests_problem_1() {
 
 
 
-    int b1[C4_HEIGHT][C4_WIDTH] = {
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 1, 1, 0, 0, 0, 0},
-        {0, 1, 2, 0, 0, 0, 0},
-        {0, 2, 1, 0, 0, 0, 0},
-        {2, 1, 2, 0, 0, 0, 0}
-    };
+    C4Board b1("233332212");
     actual = ss.query_steady_state(b1);
     std::cout << actual << std::endl;
     assert(actual == 1);
     std::cout << "Passed test 1!" << std::endl;
 
 
-    int b2[C4_HEIGHT][C4_WIDTH] = {
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 1, 0, 0, 0, 0},
-        {0, 1, 2, 0, 0, 0, 0},
-        {1, 2, 1, 0, 0, 0, 0},
-        {2, 1, 2, 0, 0, 0, 0}
-    };
+    C4Board b2("233332211");
     actual = ss.query_steady_state(b2);
     std::cout << actual << std::endl;
     assert(actual == 2);
     std::cout << "Passed test 2!" << std::endl;
 
 
-    int b3[C4_HEIGHT][C4_WIDTH] = {
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 1, 0, 0, 0, 0},
-        {0, 1, 2, 0, 0, 0, 0},
-        {0, 2, 1, 0, 0, 0, 0},
-        {2, 1, 2, 0, 0, 1, 0}
-    };
+    C4Board b3("233332216");
     actual = ss.query_steady_state(b3);
     std::cout << actual << std::endl;
     assert(actual == 7);
     std::cout << "Passed test 3!" << std::endl;
 
 
-    int b4[C4_HEIGHT][C4_WIDTH] = {
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 1, 0, 0, 0, 0},
-        {0, 1, 2, 0, 0, 0, 0},
-        {0, 2, 1, 0, 0, 0, 0},
-        {2, 1, 2, 0, 0, 0, 1}
-    };
+    C4Board b4("233332217");
     actual = ss.query_steady_state(b4);
     std::cout << actual << std::endl;
     assert(actual == 6);
     std::cout << "Passed test 4!" << std::endl;
 
 
-    int b5[C4_HEIGHT][C4_WIDTH] = {
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 1, 0, 0, 0, 0},
-        {0, 0, 1, 0, 0, 0, 0},
-        {0, 1, 2, 0, 0, 0, 0},
-        {0, 2, 1, 0, 0, 0, 0},
-        {2, 1, 2, 0, 0, 0, 0}
-    };
+    C4Board b5("233332213");
     actual = ss.query_steady_state(b5);
     std::cout << actual << std::endl;
     assert(actual == 3);
     std::cout << "Passed test 5!" << std::endl;
 
 
-    int b6[C4_HEIGHT][C4_WIDTH] = {
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 1, 0, 0, 0, 0},
-        {0, 1, 2, 0, 0, 0, 0},
-        {0, 2, 1, 0, 0, 0, 0},
-        {2, 1, 2, 1, 0, 0, 0}
-    };
+    C4Board b6("233332214");
     actual = ss.query_steady_state(b6);
     std::cout << actual << std::endl;
     assert(actual == 4);
     std::cout << "Passed test 6!" << std::endl;
 
 
-    int b7[C4_HEIGHT][C4_WIDTH] = {
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 1, 0, 0, 0, 0},
-        {0, 1, 2, 0, 0, 0, 0},
-        {0, 2, 1, 0, 0, 1, 0},
-        {2, 1, 2, 0, 0, 1, 2}
-    };
+    C4Board b7("23333221676");
     actual = ss.query_steady_state(b7);
     std::cout << actual << std::endl;
     assert(actual == 6);
     std::cout << "Passed test 7!" << std::endl;
 
 
-    int b8[C4_HEIGHT][C4_WIDTH] = {
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 1, 0, 0, 0, 0},
-        {0, 1, 2, 0, 0, 0, 2},
-        {0, 2, 1, 0, 0, 0, 1},
-        {2, 1, 2, 0, 0, 2, 1}
-    };
+    C4Board b8("233332217677");
     actual = ss.query_steady_state(b8);
     std::cout << actual << std::endl;
     assert(actual == 7);
@@ -458,11 +422,11 @@ void steady_state_unit_tests_problem_2() {
     // Define the initial board configuration
     std::array<std::string, C4_HEIGHT> ss_list = {
         "   |@  ",
-        "   |2  ",
-        "  2|2  ",
+        "   |1  ",
         "  1|1  ",
-        "  1|21@",
-        "  12122"
+        "  2|2  ",
+        "  2|12@",
+        "  21211"
     };
     SteadyState ss(ss_list);
     int actual = -1;
@@ -473,56 +437,28 @@ void steady_state_unit_tests_problem_2() {
 
 
 
-    int b1[C4_HEIGHT][C4_WIDTH] = {
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 2, 0, 0},
-        {0, 0, 2, 0, 2, 0, 0},
-        {0, 0, 1, 0, 1, 0, 0},
-        {0, 0, 1, 0, 2, 1, 1},
-        {0, 0, 1, 2, 1, 2, 2}
-    };
+    C4Board b1("43667555535337");
     actual = ss.query_steady_state(b1);
     std::cout << actual << std::endl;
     assert(actual == 5);
     std::cout << "Passed test 1!" << std::endl;
 
 
-    int b2[C4_HEIGHT][C4_WIDTH] = {
-        {0, 0, 0, 0, 1, 0, 0},
-        {0, 0, 0, 0, 2, 0, 0},
-        {0, 0, 2, 0, 2, 0, 0},
-        {0, 0, 1, 0, 1, 0, 0},
-        {0, 0, 1, 0, 2, 1, 0},
-        {0, 0, 1, 2, 1, 2, 2}
-    };
+    C4Board b2("43667555535335");
     actual = ss.query_steady_state(b2);
     std::cout << actual << std::endl;
     assert(actual == 7);
     std::cout << "Passed test 2!" << std::endl;
 
 
-    int b3[C4_HEIGHT][C4_WIDTH] = {
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 2, 0, 0},
-        {0, 0, 2, 0, 2, 0, 0},
-        {0, 0, 1, 0, 1, 0, 0},
-        {0, 0, 1, 1, 2, 1, 0},
-        {0, 0, 1, 2, 1, 2, 2}
-    };
+    C4Board b3("43667555535334");
     actual = ss.query_steady_state(b3);
     std::cout << actual << std::endl;
     assert(actual == 4);
     std::cout << "Passed test 3!" << std::endl;
 
 
-    int b4[C4_HEIGHT][C4_WIDTH] = {
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 2, 0, 0},
-        {0, 0, 2, 0, 2, 0, 0},
-        {0, 0, 1, 0, 1, 0, 0},
-        {0, 0, 1, 0, 2, 1, 0},
-        {0, 1, 1, 2, 1, 2, 2}
-    };
+    C4Board b4("43667555535332");
     actual = ss.query_steady_state(b4);
     std::cout << actual << std::endl;
     assert(actual == 2);
@@ -544,18 +480,8 @@ void steady_state_unit_tests_problem_3() {
 
 
 
-
-
-
-
-    int b1[C4_HEIGHT][C4_WIDTH] = {
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0}
-    };
+    
+    C4Board b1("");
     actual = ss.query_steady_state(b1);
     std::cout << actual << std::endl;
     assert(actual == -2);
@@ -577,18 +503,7 @@ void steady_state_unit_tests_problem_4() {
 
 
 
-
-
-
-
-    int b1[C4_HEIGHT][C4_WIDTH] = {
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0},
-        {0, 0, 0, 0, 0, 0, 0}
-    };
+    C4Board b1("");
     actual = ss.query_steady_state(b1);
     std::cout << actual << std::endl;
     assert(actual == -2);

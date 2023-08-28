@@ -14,11 +14,17 @@ C4Board::C4Board(std::string representation) {
     fill_board_from_string(representation);
 }
 
+std::string disk_col(int i){
+    if(i == 1) return "\033[31mx\033[0m";  // Red "x"
+    if(i == 2) return "\033[33mo\033[0m";  // Yellow "o"
+    return " ";
+}
+
 void C4Board::print() {
     std::cout << representation << std::endl;
-    for(int y=0;y<C4_HEIGHT;y++){
-        for(int x=0;x<C4_WIDTH;x++){
-            std::cout << board[y][x];
+    for(int y = 0; y < C4_HEIGHT; y++) {
+        for(int x = 0; x < C4_WIDTH; x++) {
+            std::cout << disk_col(board[y][x]) << " ";
         }
         std::cout << std::endl;
     }
@@ -211,6 +217,43 @@ void C4Board::add_all_winning_fhourstones(std::unordered_set<C4Board*>& neighbor
     }
 }
 
+int C4Board::get_human_winning_fhourstones() {
+    std::vector<int> winning_columns;
+
+    for (int col = 1; col <= C4_WIDTH; col++) {
+        if (countChar(representation, '0' + col) < C4_HEIGHT) {
+            C4Board* moved = child(col);
+            int work = -1;
+            C4Result winner = moved->who_is_winning(work);
+            if (winner == RED) {
+                winning_columns.push_back(col);
+            }
+            delete moved;
+        }
+    }
+
+    print();
+    if (winning_columns.size() == 1) {
+        // Single winning column
+        return winning_columns[0];
+    } else {
+        // Multiple winning columns
+        std::cout << "There are multiple winning columns. Please select one:" << std::endl;
+        for (size_t i = 0; i < winning_columns.size(); i++) {
+            std::cout << "Column " << winning_columns[i] << std::endl;
+        }
+        
+        int choice;
+        do {
+            std::cout << "Enter your choice: ";
+            std::cin >> choice;
+        } while (std::find(winning_columns.begin(), winning_columns.end(), choice) == winning_columns.end());
+
+        return choice;
+    }
+}
+
+
 int C4Board::get_best_winning_fhourstones() {
     int lowest_work = INT_MAX;
     int lowest_work_move = -1;
@@ -220,6 +263,26 @@ int C4Board::get_best_winning_fhourstones() {
             C4Board* moved = child(i);
             int work = -1;
             C4Result winner = moved->who_is_winning(work);
+            if (winner == RED && work < lowest_work) {
+                lowest_work = work;
+                lowest_work_move = i;
+            }
+            delete moved;
+        }
+    }
+    return lowest_work_move;
+}
+
+int C4Board::get_centermost_winning_fhourstones() {
+    int lowest_work = INT_MAX;
+    int lowest_work_move = -1;
+
+    for (int i = 1; i <= C4_WIDTH; i++) {
+        if (countChar(representation, '0' + i) < C4_HEIGHT) {
+            C4Board* moved = child(i);
+            int work = -1;
+            C4Result winner = moved->who_is_winning(work);
+            work = abs(4-i);
             if (winner == RED && work < lowest_work) {
                 lowest_work = work;
                 lowest_work_move = i;
@@ -250,7 +313,7 @@ int C4Board::get_best_winning_fhourstones() {
 }*/
 
 void C4Board::add_best_winning_fhourstones(std::unordered_set<C4Board*>& neighbors) {
-    C4Board* moved = child(get_best_winning_fhourstones());
+    C4Board* moved = child(get_human_winning_fhourstones());
     std::cout << moved->representation << std::endl;
     neighbors.insert(moved);
 }
@@ -266,7 +329,7 @@ void C4Board::add_all_legal_children(std::unordered_set<C4Board*>& neighbors){
 }
 
 void C4Board::add_only_child_steady_state(const SteadyState& ss, std::unordered_set<C4Board*>& neighbors){
-    int x = ss.query_steady_state(board);
+    int x = ss.query_steady_state(*this);
     C4Board* moved = child(x);
     std::cout << moved->representation << std::endl;
     neighbors.insert(moved);
@@ -293,7 +356,10 @@ std::unordered_set<C4Board*> C4Board::get_neighbors(){
         case TRIM_STEADY_STATES:
             if(representation.size() % 2 == 1){ // if it's yellow's move
                 SteadyState ss;
-                bool found = find_steady_state(representation, 200000, ss, true);
+                bool found = false;
+                for(int i = 0; i < 3 && !found; i++){
+                    found = find_steady_state(representation, 200000, ss, true);
+                }
                 if(found){
                     std::cout << "found a steady state!" << std::endl;
                     break;
