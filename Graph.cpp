@@ -96,6 +96,9 @@ public:
                 nodes.find(id)->second.neighbors.insert((*it)->get_hash());
                 add_node(*it, dist);
             }
+            iterate_physics(5);
+            render_json("viewer_c4/data.json");
+            make_edges_bidirectional();
         }
     }
 
