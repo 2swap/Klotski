@@ -9,7 +9,7 @@
 // Method to populate char** array from std::array of strings
 void populate_char_array(const std::array<std::string, C4_HEIGHT>& source, char dest[C4_HEIGHT][C4_WIDTH]);
 
-std::vector<char> replacement_chars = {'+', '=', '-', ' ', ' ', ' ', ' ', ' ', ' ', '|'};
+std::vector<char> replacement_chars = {'+', '=', '-', ' ', ' ', ' ', ' ', '!', '<', '>', '|'};
 
 SteadyState::SteadyState() {
     // Initialize the character array with empty cells
@@ -47,9 +47,29 @@ int SteadyState::query_steady_state(const C4Board board) const {
     //drop a yellow piece in each column and see if it wins
     for (int x = 0; x < C4_WIDTH; ++x) {
         C4Board board_copy = board;
-        board_copy.play_piece((x+2)%C4_WIDTH);
+        board_copy.play_piece((x+1)%C4_WIDTH+1);
         board_copy.play_piece(x+1);
         if(board_copy.who_won() == YELLOW) return x+1;
+    }
+
+    // Third Priority: Make Traps!
+    //drop a red piece in each column and see if it makes a trap
+    for (int x = 0; x < C4_WIDTH; ++x) {
+        C4Board board_copy = board;
+        board_copy.play_piece(x+1);
+        board_copy.play_piece(0);
+        int save_x2 = -10;
+        for (int x2 = 0; x2 < C4_WIDTH; ++x2) {
+            C4Board board_copy3 = board_copy;
+            board_copy3.play_piece(x2+1);
+            if(board_copy3.who_won() == RED) {if(save_x2>-1) {return x+1;} save_x2 = x2;}
+        }
+        if(save_x2 < 0) continue;
+        C4Board board_copy2 = board;
+        board_copy2.play_piece(x+1);
+        board_copy2.play_piece(save_x2+1);
+        board_copy2.play_piece(save_x2+1);
+        if(board_copy2.who_won() == RED) {return x+1;}
     }
 
     // Third Priority: Obey Miai
@@ -58,8 +78,7 @@ int SteadyState::query_steady_state(const C4Board board) const {
         for (int y = 0; y < C4_HEIGHT; ++y) {
             if(b[y][x] != 0) continue;
             char letter = steadystate[y][x];
-            std::find(miai.begin(), miai.end(), letter);
-            if (std::find(miai.begin(), miai.end(), letter) != miai.end()) {
+            if (letter == '@' || letter == '#') {
                 alph[letter] = alph[letter] + 1;
             }
         }
@@ -77,7 +96,7 @@ int SteadyState::query_steady_state(const C4Board board) const {
         }
     }
 
-    //if(num_unpaired_miai > 1) return -7;
+    if(num_unpaired_miai > 1) return -7;
 
     for (int x = 0; x < C4_WIDTH; ++x) {
         for (int y = 0; y < C4_HEIGHT; ++y) {
@@ -91,6 +110,28 @@ int SteadyState::query_steady_state(const C4Board board) const {
         }
     }
 
+    for (int x = 0; x < C4_WIDTH; ++x) {
+        for (int y = 0; y < C4_HEIGHT; ++y) {
+            if (b[y][x] == 0 && steadystate[y][x] == '!') {
+                if (y == C4_HEIGHT - 1 || b[y + 1][x] != 0) {
+                    return x+1;
+                }
+            }
+        }
+    }
+
+    // Next Priority: Toggley!
+    bool toggley = false;
+    for (int x = 0; x < C4_WIDTH; ++x) {
+        for (int y = 0; y < C4_HEIGHT; ++y) {
+            if(b[y][x] != 0) continue;
+            char letter = steadystate[y][x];
+            if (letter == '!') {
+                toggley = !toggley;
+            }
+        }
+    }
+
     // Fourth Priority: Claimeven and Claimodd
     // First, check there aren't 2 available claimparities
     int return_x = -1;
@@ -100,10 +141,12 @@ int SteadyState::query_steady_state(const C4Board board) const {
             char ss = steadystate[y][x];
             if (b[y][x] == 0) {
                 priorities[x] = ss;
-                if ((ss == ' ' && y % 2 == 0) || (ss == '|' && y % 2 == 1))
-                    if(return_x == -1)
+                bool even = y%2==0;
+                if ((ss == ' ' && even) || (ss == '|' && !even) || (ss == '<' && (even ^ toggley)) || (ss == '>' && (!even ^ toggley)))
+                    return x+1;
+                    /*if(return_x == -1)
                         return_x = x;
-                    /*else
+                    else
                         return -5;*/
                 break;
             }
@@ -277,7 +320,7 @@ bool find_steady_state(std::string rep, int num_games, SteadyState& ss, bool ver
     int best = 1;
 
     // Generate a lot of random steady states
-    int verification = 100000;
+    int verification = 200000;
     for (int i = 0; i < 1000; ++i) {
         steady_states.push_back(create_random_steady_state(b.board));
     }
@@ -286,8 +329,15 @@ bool find_steady_state(std::string rep, int num_games, SteadyState& ss, bool ver
     while(true){
         int consecutive_wins = 0;
         int idx = rand()%steady_states.size(); // Randomly select a steady state
+        int coe = 0;
         while (true) {
-            C4Result col = steady_states[idx].play_one_game(rep, last_defeats[rand()%num_coevolution], rand()%50==0?last_defeats[rand()%num_coevolution]:"");
+            C4Result col;
+            if(rand()%50==0 && coe < num_coevolution){
+                col = steady_states[idx].play_one_game(rep, last_defeats[rand()%num_coevolution], last_defeats[coe]);
+                coe++;
+            } else {
+                col = steady_states[idx].play_one_game(rep, last_defeats[rand()%num_coevolution], "");
+            }
             games_played++;
 
             if (col != RED) { // If it loses
@@ -313,7 +363,7 @@ bool find_steady_state(std::string rep, int num_games, SteadyState& ss, bool ver
                     best = consecutive_wins;
                     games_played = 0;
                 }
-                if(games_played>num_games+verification) return false;
+                if(games_played>num_games) return false;
                 break;
             } else {
                 if(consecutive_wins % 1000==999 && verbose){
@@ -465,6 +515,53 @@ void steady_state_unit_tests_problem_2() {
     std::cout << "Passed test 4!" << std::endl;
 }
 
+void steady_state_unit_tests_problem_5() {
+    // Define the initial board configuration
+    std::array<std::string, C4_HEIGHT> ss_list = {
+        "------+",
+        "------+",
+        "------+",
+        "------+",
+        "------+",
+        "------+"
+    };
+    SteadyState ss(ss_list);
+    int actual = -1;
+
+
+
+
+
+
+
+    C4Board b1("121212");
+    actual = ss.query_steady_state(b1);
+    std::cout << actual << std::endl;
+    assert(actual == 1);
+    std::cout << "Passed test 1!" << std::endl;
+
+
+    C4Board b2("123212");
+    actual = ss.query_steady_state(b2);
+    std::cout << actual << std::endl;
+    assert(actual == 2);
+    std::cout << "Passed test 2!" << std::endl;
+
+
+    C4Board b3("4332322441");
+    actual = ss.query_steady_state(b3);
+    std::cout << actual << std::endl;
+    assert(actual == 1);
+    std::cout << "Passed test 3!" << std::endl;
+
+
+    C4Board b4("55567667364242");
+    actual = ss.query_steady_state(b4);
+    std::cout << actual << std::endl;
+    assert(actual == 4);
+    std::cout << "Passed test 4!" << std::endl;
+}
+
 void steady_state_unit_tests_problem_3() {
     // Define the initial board configuration
     std::array<std::string, C4_HEIGHT> ss_list = {
@@ -514,5 +611,7 @@ void steady_state_unit_tests(){
     steady_state_unit_tests_problem_1();
     steady_state_unit_tests_problem_2();
     steady_state_unit_tests_problem_3();
+    steady_state_unit_tests_problem_4();
+    steady_state_unit_tests_problem_5();
     //steady_state_unit_tests_problem_4();
 }

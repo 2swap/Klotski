@@ -7,7 +7,7 @@
 
 class GenericBoard{
 public:
-    virtual void print() = 0;
+    virtual void print() const = 0;
     virtual bool is_solution() = 0;
     virtual double board_specific_hash() = 0;
     virtual double board_specific_reverse_hash() = 0;

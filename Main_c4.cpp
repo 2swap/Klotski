@@ -7,8 +7,8 @@ const int C4_WIDTH = 7;
 #include <fstream>
 #include "json.hpp"
 #include "SteadyState.cpp"
-#include "C4Board.cpp"
 #include "Graph.cpp"
+#include "C4Board.cpp"
 using json = nlohmann::json;
 
 int main(int argc, char** argv){
@@ -19,8 +19,8 @@ int main(int argc, char** argv){
     steady_state_unit_tests();
     srand(time(NULL));
 
-    Graph<C4Board> graph;
-    graph.add_node(new C4Board("4444445623333"), 0);
+    graph.add_node(new C4Board("4445554"), 0);
+    //graph.add_node(new C4Board("43637563356652421"), 0);
     graph.expand_graph();
     graph.sanitize_for_closure();
 

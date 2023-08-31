@@ -3,6 +3,8 @@
 #include "C4Board.h"
 #include "SteadyState.h"
 
+Graph<C4Board> graph;
+
 C4Board::C4Board(std::string representation) {
     // Allocate memory for the board array
     for (int i = 0; i < C4_HEIGHT; ++i) {
@@ -17,10 +19,10 @@ C4Board::C4Board(std::string representation) {
 std::string disk_col(int i){
     if(i == 1) return "\033[31mx\033[0m";  // Red "x"
     if(i == 2) return "\033[33mo\033[0m";  // Yellow "o"
-    return " ";
+    return ".";
 }
 
-void C4Board::print() {
+void C4Board::print() const {
     std::cout << representation << std::endl;
     for(int y = 0; y < C4_HEIGHT; y++) {
         for(int x = 0; x < C4_WIDTH; x++) {
@@ -125,33 +127,33 @@ int C4Board::countChar(std::string str, char ch) {
     return count;
 }
 
-C4Board* C4Board::remove_piece(){
-    std::string rep = representation.substr(0, representation.size()-1);
-    C4Board* new_board = new C4Board(rep);
-    return new_board;
-}
-
 void C4Board::play_piece(int piece){
-    int x = piece - 1; // convert from char to int
-    int y = 0;
-    for (y = C4_HEIGHT - 1; y >= 0; y--) {
-        if (board[y][x] == 0) {
-            board[y][x] = representation.size()%2+1;
-            break;
+    if(piece < 0) {std::cout << "uh oh " << piece << std::endl; exit(1);}
+    //if(!is_legal) exit();
+    else if(piece > 0){
+        int x = piece - 1; // convert from char to int
+        int y = 0;
+        for (y = C4_HEIGHT - 1; y >= 0; y--) {
+            if (board[y][x] == 0) {
+                board[y][x] = representation.size()%2+1;
+                break;
+            }
         }
+        Bitboard add = 1UL<<((1+C4_WIDTH)*y+x);
+        both_bitboard += add;
+        if(representation.size()%2==0)
+            red_bitboard += add;
+        else
+            yellow_bitboard += add;
+        representation+=std::to_string(piece);
+    } else {
+        representation+='0';
     }
-    Bitboard add = 1UL<<((1+C4_WIDTH)*y+x);
-    both_bitboard += add;
-    if(representation.size()%2==0)
-        red_bitboard += add;
-    else
-        yellow_bitboard += add;
-
-    representation+=std::to_string(piece);
 }
 
 C4Board* C4Board::child(int piece){
-    C4Board* new_board = new C4Board(representation+std::to_string(piece));
+    C4Board* new_board = new C4Board(representation);
+    new_board->play_piece(piece);
     return new_board;
 }
 
@@ -232,12 +234,70 @@ int C4Board::get_human_winning_fhourstones() {
         }
     }
 
-    print();
     if (winning_columns.size() == 1) {
         // Single winning column
         return winning_columns[0];
     } else {
         // Multiple winning columns
+
+        // First Priority: Add things already in the graph!
+        //drop a red piece in each column and see if it wins
+        for (int i = 0; i < winning_columns.size(); ++i) {
+            int x = winning_columns[i]-1;
+            C4Board board_copy = *this;
+            board_copy.play_piece(x+1);
+            if(graph.node_exists(board_copy.get_hash())) return x+1;
+        }
+
+        // Next Priority: Make 4 in a row!
+        //drop a red piece in each column and see if it wins
+        for (int i = 0; i < winning_columns.size(); ++i) {
+            int x = winning_columns[i]-1;
+            C4Board* board_copy = child(x+1);
+            if(board_copy->who_won() == RED) return x+1;
+        }
+
+        // Next Priority: Test for easy steadystates!
+        //drop a red piece in each column and see if it can make a steadystate
+        for (int i = 0; i < winning_columns.size(); ++i) {
+            int x = winning_columns[i]-1;
+            C4Board* board_copy = child(x+1);
+            SteadyState ss;
+            if(find_steady_state(board_copy->representation, 7000, ss, true)) return x+1;
+        }
+
+        // Next Priority: Make Traps!
+        //drop a red piece in each column and see if it makes a trap
+        for (int i = 0; i < winning_columns.size(); ++i) {
+            int x = winning_columns[i]-1;
+            C4Board* board_copy = child(x+1);
+            board_copy->play_piece(0);
+            int save_x2 = -10;
+            for (int x2 = 0; x2 < C4_WIDTH; ++x2) {
+                C4Board* board_copy3 = board_copy->child(x2+1);
+                if(board_copy3->who_won() == RED) {if(save_x2>-1) {return x+1;} save_x2 = x2;}
+            }
+            if(save_x2 < 0) continue;
+            C4Board* board_copy2 = child(x+1);
+            board_copy2->play_piece(save_x2+1);
+            board_copy2->play_piece(save_x2+1);
+            if(board_copy2->who_won() == RED) {return x+1;}
+        }
+/*
+        // Next Priority: Make a forcing move!
+        //drop a red piece in each column and see if it wins
+        for (int i = 0; i < winning_columns.size(); ++i) {
+            int x = winning_columns[i]-1;
+            C4Board* board_copy = child(x+1);
+            board_copy->play_piece(0);
+            for (int x2 = 0; x2 < C4_WIDTH; ++x2) {
+                C4Board* board_copy3 = board_copy->child(x2+1);
+                if(board_copy3->who_won() == RED) {return x+1;}
+            }
+        }
+*/
+        print();
+
         std::cout << "There are multiple winning columns. Please select one:" << std::endl;
         for (size_t i = 0; i < winning_columns.size(); i++) {
             std::cout << "Column " << winning_columns[i] << std::endl;
@@ -293,25 +353,6 @@ int C4Board::get_centermost_winning_fhourstones() {
     return lowest_work_move;
 }
 
-/*bool C4Board::add_children_already_in_graph(std::unordered_set<C4Board*>& neighbors) {
-    for (int i = 1; i <= C4_WIDTH; i++) {
-        if (countChar(representation, '0' + i) < C4_HEIGHT) {
-            C4Board* moved = child(i);
-            int work = -1;
-            C4Result winner = moved->who_is_winning(work);
-            if (winner == RED && work < lowest_work) {
-                lowest_work = work;
-                lowest_work_move = i;
-            }
-            if(in graph){
-                neighbors.insert(moved);
-                return true;
-            }
-            delete moved;
-        }
-    }
-}*/
-
 void C4Board::add_best_winning_fhourstones(std::unordered_set<C4Board*>& neighbors) {
     C4Board* moved = child(get_human_winning_fhourstones());
     std::cout << moved->representation << std::endl;
@@ -324,6 +365,23 @@ void C4Board::add_all_legal_children(std::unordered_set<C4Board*>& neighbors){
             C4Board* moved = child(i);
             std::cout << moved->representation << std::endl;
             neighbors.insert(moved);
+        }
+    }
+}
+
+void C4Board::add_all_good_children(std::unordered_set<C4Board*>& neighbors){
+    for (int i = 1; i <= C4_WIDTH; i++) {
+        if (countChar(representation, '0'+i) < C4_HEIGHT) {
+            C4Board* moved = child(i);
+            // Check the move isn't giga dumb
+            bool is_dumb = false;
+            for (int x = 0; x < C4_WIDTH; ++x) {
+                C4Board* board_copy = moved->child(x+1);
+                if(board_copy->who_won() == RED) {is_dumb = true; break;}
+            }
+            if(!is_dumb){
+                neighbors.insert(moved);
+            }
         }
     }
 }
@@ -357,8 +415,8 @@ std::unordered_set<C4Board*> C4Board::get_neighbors(){
             if(representation.size() % 2 == 1){ // if it's yellow's move
                 SteadyState ss;
                 bool found = false;
-                for(int i = 0; i < 3 && !found; i++){
-                    found = find_steady_state(representation, 200000, ss, true);
+                for(int i = 0; i < 2 && !found; i++){
+                    found = find_steady_state(representation, 30000, ss, true);
                 }
                 if(found){
                     std::cout << "found a steady state!" << std::endl;
@@ -366,7 +424,7 @@ std::unordered_set<C4Board*> C4Board::get_neighbors(){
                 }
                 else{
                     std::cout << "Adding children as yellow!" << std::endl;
-                    add_all_legal_children(neighbors);
+                    add_all_good_children(neighbors);
                 }
             }else{ // red's move
                 std::cout << "Making a good move as red." << std::endl;

@@ -55,7 +55,7 @@ public:
         delete[] representation;
     }
 
-    void print() override {
+    void print() const override {
         std::cout << std::endl;
         for(int y = 0; y < BOARD_HEIGHT; y++) {
             for(int x = 0; x < BOARD_WIDTH; x++) std::cout << representation[y*BOARD_WIDTH+x];

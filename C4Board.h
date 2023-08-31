@@ -55,7 +55,7 @@ public:
     bool symmetrical = false;
 
     C4Board(std::string representation);
-    void print() override;
+    void print() const override;
     int random_legal_move() const;
     bool is_legal(int x) const;
     C4Result who_won();
@@ -74,6 +74,7 @@ public:
     void add_best_winning_fhourstones(std::unordered_set<C4Board*>& neighbors);
     void add_all_winning_fhourstones(std::unordered_set<C4Board*>& neighbors);
     void add_all_legal_children(std::unordered_set<C4Board*>& neighbors);
+    void add_all_good_children(std::unordered_set<C4Board*>& neighbors);
     void add_only_child_steady_state(const SteadyState& ss, std::unordered_set<C4Board*>& neighbors);
     std::unordered_set<C4Board*> get_neighbors();
 };
