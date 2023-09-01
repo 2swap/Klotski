@@ -71,7 +71,6 @@ public:
         int s = size();
         if(s == 1){
             root_node_hash = hash;
-            symmetrical = t->symmetrical;
         }
         if(s%100 == 0) std::cout << s << " nodes and counting..." << std::endl;
         bfs_queue.push(std::make_pair(hash,dist+1));
@@ -237,6 +236,13 @@ public:
         return nodes.find(id) != nodes.end();
     }
 
+    void print_hashes(){
+        for(auto it = nodes.begin(); it != nodes.end(); ++it){
+            it->second.data->print();
+            std::cout << it->first << std::endl << std::endl << std::endl;
+        }
+    }
+
     /**
      * Remove a node from the graph.
      * @param id The hash of the node to be removed.
@@ -305,7 +311,6 @@ public:
             Node<T>* node = &(it->second);
             if(node->dist > dist_bound) continue;
             node->physics_new = false;
-            if(symmetrical && node->data->is_right()) continue;
             for(auto it2 = nodes.begin(); it2 != nodes.end(); ++it2){
                 Node<T>* node2 = &(it2->second);
                 if(node2->dist > dist_bound || it == it2) continue;
@@ -357,7 +362,6 @@ public:
         for(auto it = nodes.begin(); it != nodes.end(); ++it){
             Node<T>* node = &(it->second);
             if(node->dist > dist_bound) continue;
-            if(symmetrical && node->data->is_right()) continue;
             node->vx *= decay;
             node->vy *= decay;
             node->vz *= decay;
@@ -365,18 +369,6 @@ public:
             node->y += node->vy;
             node->z += node->vz;
             if(two_dimensions)node->z = 0;
-        }
-
-        if(symmetrical){
-            for(auto it = nodes.begin(); it != nodes.end(); ++it){
-                Node<T>* node = &(it->second);
-                if(node->dist > dist_bound) continue;
-                if(!node->data->is_right()) continue;
-                Node<T>* pair = &(nodes.find(it->second.data->get_reverse_hash())->second);
-                node->x = -pair->x;
-                node->y = pair->y;
-                node->z = pair->z;
-            }
         }
     }
 
@@ -451,5 +443,4 @@ public:
     std::queue<std::pair<double, int>> bfs_queue;
     std::map<int, std::pair<int, int>> dist_count;
     double root_node_hash = 0;
-    bool symmetrical;
 };

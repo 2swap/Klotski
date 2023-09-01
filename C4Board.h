@@ -66,7 +66,7 @@ public:
     int countChar(std::string str, char ch);
     C4Board* remove_piece();
     void play_piece(int piece);
-    C4Board* child(int piece);
+    C4Board child(int piece);
     C4Result who_is_winning(int& work);
     int get_best_winning_fhourstones();
     int get_human_winning_fhourstones();
