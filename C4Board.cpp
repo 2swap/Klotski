@@ -152,7 +152,7 @@ void C4Board::play_piece(int piece){
     }
 }
 
-C4Board C4Board::child(int piece){
+C4Board C4Board::child(int piece) const{
     C4Board new_board(representation + static_cast<char>(piece+'0'));
     return new_board;
 }
@@ -260,8 +260,8 @@ int C4Board::get_human_winning_fhourstones() {
             C4Board board_copy = child(x+1);
             SteadyState ss;
             bool found = false;
-            for(int i = 0; i < 3 && !found; i++){
-                found = find_steady_state(board_copy.representation, 20000, ss, true);
+            for(int i = 0; i < 2 && !found; i++){
+                found = find_steady_state(board_copy.representation, 7000, ss, true);
             }
             if(found) return(x+1);
         }
@@ -412,7 +412,7 @@ std::unordered_set<C4Board*> C4Board::get_neighbors(){
                 SteadyState ss;
                 bool found = false;
                 for(int i = 0; i < 3 && !found; i++){
-                    found = find_steady_state(representation, 20000, ss, true);
+                    found = find_steady_state(representation, 10000, ss, true);
                 }
                 if(found){
                     std::cout << "found a steady state!" << std::endl;
