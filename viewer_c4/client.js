@@ -9,8 +9,9 @@ let alpha = 0, beta=0;
 let graphbutton = false;
 
 var config = {
-    blurbs: {options:["Invisible", "Visible"], select:0},
-    solutions: {options:["Invisible", "Visible"], select:0},
+    blurbs: {options:["Invisible"/*, "Visible"*/], select:0, key:'B'},
+    solutions: {options:["Invisible", "Visible"], select:0, key:'Q'},
+    mode: {options:["Explore", "Play"], select:0, key:'M'},
 };
 
 $(document).ready(async function() {
@@ -99,6 +100,10 @@ $(document).ready(async function() {
 
         }
 
+        function uppercase_it(str){
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
         function render_blurb(){
             graphctx.globalAlpha = 1;
             var y = h - 180;
@@ -107,7 +112,9 @@ $(document).ready(async function() {
             graphctx.fillText("Controls", 20, y+=16)
             graphctx.fillText("[R] to reset", 20, y+=16)
             graphctx.fillText("[WASD] rotate graph", 20, y+=16)
-            graphctx.fillText("[Q] Show Solutions: " + config.solutions.options[config.solutions.select], 20, y+=16)
+            for(x in config){
+                graphctx.fillText("["+config[x].key+"] "+uppercase_it(x)+": " + config[x].options[config[x].select], 20, y+=16)
+            }
             graphctx.fillText("[arrows] to pan", 20, y+=16)
             graphctx.fillText("[click] on a node!", 20, y+=16)
         }
@@ -207,17 +214,21 @@ $(document).ready(async function() {
 
         function key (e) {
             const c = e.keyCode;
+            const ch = String.fromCharCode(c);
+            console.log(ch);
             if (c == 37) ox -= zoom * 100;
             if (c == 38) oy -= zoom * 100;
             if (c == 39) ox += zoom * 100;
             if (c == 40) oy += zoom * 100;
-            if (c == 65) alpha -= .04;
-            if (c == 68) alpha += .04;
-            if (c == 83) beta -= .04;
-            if (c == 87) beta += .04;
-            if (c == 66) config.blurbs.select = (config.blurbs.select+1)%config.blurbs.options.length;
-            if (c == 81) config.solutions.select = (config.solutions.select+1)%config.solutions.options.length;
-            if (c == 82) reset_hash();
+            if (ch == 'A') alpha -= .04;
+            if (ch == 'D') alpha += .04;
+            if (ch == 'S') beta -= .04;
+            if (ch == 'W') beta += .04;
+            for(x in config){
+                if (ch == config[x].key) config[x].select = (config[x].select+1)%config[x].options.length;
+            }
+            if (ch == 'R') reset_hash();
+            makeMoveAsRed(nodes[hash].representation);
             render();
         }
 
@@ -234,8 +245,8 @@ $(document).ready(async function() {
         var square_sz = 40;
 
         const boardcanvas = document.getElementById(`board`);
-        boardcanvas.width = (parseInt(board_w)+1)*square_sz;
-        boardcanvas.height = (parseInt(board_h)+1)*square_sz;
+        boardcanvas.width = (parseInt(board_w))*square_sz;
+        boardcanvas.height = (parseInt(board_h))*square_sz;
         boardctx = boardcanvas.getContext(`2d`);
 
         let boardbutton = false;
@@ -248,8 +259,8 @@ $(document).ready(async function() {
         render();
 
         function drawStone(x, y, col) {
-         var px = (x+.5)*40;
-         var py = (5-y+.5)*40;
+         var px = (x+.5)*square_sz;
+         var py = (5-y+.5)*square_sz;
 
          boardctx.fillStyle = col;
          boardctx.beginPath();
@@ -260,6 +271,53 @@ $(document).ready(async function() {
          boardctx.fillStyle = "white";
          boardctx.fillText(ss, px, py+9);
         }
+
+        boardcanvas.addEventListener('click', handleClick);
+
+        function handleClick(event) {
+          // Get the mouse click coordinates relative to the canvas
+          const rect = boardcanvas.getBoundingClientRect();
+          const mouseX = event.clientX - rect.left;
+          const mouseY = event.clientY - rect.top;
+
+          // Calculate the column where the player clicked
+          const column = Math.floor(mouseX / square_sz);
+
+          // Call a function to handle the player's move in this column
+          makeMove(column + 1);
+        }
+
+        function makeMoveAsRed(newBoardString){
+          if(config.mode.select == 1 && newBoardString.length%2 == 0)
+            setTimeout(function () {
+              for (let column = 1; column <= 7; column++) {
+                if (makeMove(column)) {
+                  break;
+                }
+              }
+            }, 400);
+        }
+
+        function makeMove(column) {
+            console.log(column);
+            const newBoardString = nodes[hash].representation + column;
+
+              // Update the board representation and hash
+              for (const nodeHash in nodes) {
+                  if(nodes[nodeHash].representation == newBoardString){
+                      hash = nodeHash;
+
+                      // Render the updated board
+                      makeMoveAsRed(newBoardString);
+                      render_board();
+                      render();
+                    return true;
+                  }
+
+              }
+              return false;
+        }
+
 
 
         function render_board () {

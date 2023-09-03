@@ -20,9 +20,9 @@ int main(int argc, char** argv){
     //find_steady_state("436766444174331", 100000000, ss, true, false);
     //exit(0);
 
-    graph.add_node(new C4Board("4363"), 0);
+    graph.add_node(new C4Board("4366"));
     //graph.add_node(new C4Board("43637563356652421"), 0);
-    graph.expand_graph();
+    graph.expand_graph(true);
     graph.sanitize_for_closure();
     graph.mark_distances();
 

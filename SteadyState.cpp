@@ -313,6 +313,7 @@ bool find_steady_state(std::string rep, int num_games, SteadyState& ss, bool ver
         std::cout << "Loaded cached steady state from file." << std::endl;
         return true;
     }
+    b.print();
 
     std::vector<SteadyState> steady_states;
     int num_coevolution = 100;
@@ -346,7 +347,6 @@ bool find_steady_state(std::string rep, int num_games, SteadyState& ss, bool ver
             std::string new_defeat = "not_defeated";
             col = steady_states[idx].play_one_game(rep, new_defeat, prior_defeat, consecutive_wins>10000);
             if(new_defeat != "not_defeated"){
-                //std::cout << prior_defeat << " " << new_defeat << " " << "defeated by " << (use_prior?"prior":"random") << std::endl;
                 last_defeats.push_front(new_defeat);
                 last_defeats.pop_back();
             }
@@ -366,18 +366,14 @@ bool find_steady_state(std::string rep, int num_games, SteadyState& ss, bool ver
                 if(games_played>num_games) return false;
                 steady_states[idx].mutate();
                 if(best < consecutive_wins){
-                    std::cout << consecutive_wins << " consecutive wins" << std::endl;
                     best = consecutive_wins;
                     games_played = 0;
                 }
                 break;
             } else {
-                if(consecutive_wins % 10000==9999 && verbose){
-                    std::cout << consecutive_wins << " consecutive wins" << std::endl;
-                    steady_states[idx].print();
-                }
                 if(consecutive_wins > verification){
                     std::cout << "Steady state found after " << games_played << " games." << std::endl;
+                    ss.print();
                     ss = steady_states[idx];
                     std::string filename = "steady_states/" + ss_hash + ".ss";
                     steady_states[idx].write_to_file(filename);

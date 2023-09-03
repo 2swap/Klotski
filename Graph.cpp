@@ -8,6 +8,7 @@
 #include <map>
 #include <list>
 #include <queue>
+#include <stack>
 #include <random>
 #include <limits.h>
 #include "GenericBoard.cpp"
@@ -25,7 +26,7 @@ public:
      * @param t The data associated with the node.
      * @param dist The distance of the node from the root.
      */
-    Node(T* t, int dist) : data(t), dist(dist) {}
+    Node(T* t) : data(t) {}
     int dist = 0;
     int solution_dist = -1;
     bool highlight = false;
@@ -60,43 +61,44 @@ public:
      * @param t The data associated with the node.
      * @param dist The distance of the node from the root.
      */
-    void add_node(T* t, int dist){
+    void add_node(T* t){
         double hash = t->get_hash();
         if(nodes.find(hash) != nodes.end()) {
             delete t;
             return;
         }
-        Node<T> n(t, dist);
+        Node<T> n(t);
         nodes.insert(std::make_pair(hash,n));
         int s = size();
         if(s == 1){
             root_node_hash = hash;
         }
-        if(s%100 == 0) std::cout << s << " nodes and counting..." << std::endl;
-        bfs_queue.push(std::make_pair(hash,dist+1));
-        dist_count.insert(std::make_pair(dist, std::make_pair(0,0)));
-        if(t->is_solution())
-            dist_count[dist].second++;
-        else
-            dist_count[dist].first++;
+        if(s%10 == 0) std::cout << s << " nodes and counting..." << std::endl;
     }
 
     /**
      * Expand the graph by adding neighboring nodes.
      */
-    void expand_graph(){
+    void expand_graph(bool dfs){
+        std::stack<double> bfs_queue;
+        for(auto it = nodes.begin(); it != nodes.end(); ++it){
+            double node_id = it->first;
+            Node<T>* node = &(it->second);
+            bfs_queue.push(node_id);
+        }
         while(!bfs_queue.empty()){
-            auto pop = bfs_queue.front();
+            double pop = bfs_queue.top();
             bfs_queue.pop();
-            double id = pop.first;
-            int dist = pop.second;
+            double id = pop;
             std::unordered_set<T*> neighbor_nodes = nodes.find(id)->second.data->get_neighbors();
             for(auto it = neighbor_nodes.begin(); it != neighbor_nodes.end(); ++it){
-                nodes.find(id)->second.neighbors.insert((*it)->get_hash());
-                add_node(*it, dist);
+                double child_hash = (*it)->get_hash();
+                nodes.find(id)->second.neighbors.insert(child_hash);
+                add_node(*it);
+                bfs_queue.push(child_hash);
             }
             iterate_physics(3);
-            render_json("viewer_c4/data.json");
+            if(rand()%6==0)render_json("viewer_c4/data.json");
             make_edges_bidirectional();
         }
     }
@@ -185,14 +187,14 @@ public:
      */
     void mark_distances(){
         std::set<double> solutions = get_solutions();
-        bfs_queue = std::queue<std::pair<double, int>>(); // clear it
+        std::queue<std::pair<double, int>> bfs_queue = std::queue<std::pair<double, int>>(); // clear it
         for(double solution : solutions){
             bfs_queue.push(std::make_pair(solution, 0));
             nodes.find(solution)->second.solution_dist = 0;
         }
         std::cout << solutions.size() << std::endl;
         while(!bfs_queue.empty()){
-            auto pop = bfs_queue.front();
+            std::pair<double, int> pop = bfs_queue.front();
             bfs_queue.pop();
             double id = pop.first;
             int dist = pop.second;
@@ -442,7 +444,6 @@ public:
     }
 
     std::unordered_map<double, Node<T>> nodes;
-    std::queue<std::pair<double, int>> bfs_queue;
     std::map<int, std::pair<int, int>> dist_count;
     double root_node_hash = 0;
 };
