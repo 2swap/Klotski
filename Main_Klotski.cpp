@@ -18,10 +18,8 @@ int main(int argc, char** argv){
 
     graph.expand_graph();
 
-    auto solutions = graph.get_solutions();
-    std::cout << "solutions count = " << solutions.size() << std::endl;
     std::cout << "nodes count = " << graph.size() << std::endl;
-    graph.mark_distances(solutions);
+    graph.mark_distances();
 
     std::cout << graph.size() << std::endl;
 

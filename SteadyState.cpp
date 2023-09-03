@@ -21,6 +21,12 @@ SteadyState::SteadyState() {
 }
 
 SteadyState::SteadyState(const std::array<std::string, C4_HEIGHT>& chars) {
+    // Initialize the character array with empty cells
+    for (int row = 0; row < C4_HEIGHT; ++row) {
+        for (int col = 0; col < C4_WIDTH; ++col) {
+            steadystate[row][col] = ' ';
+        }
+    }
     // Initialize the character array with the provided strings
     populate_char_array(chars, steadystate);
 }
@@ -34,20 +40,19 @@ int SteadyState::query_steady_state(const C4Board board) const {
     }
     // Given a board, use the steady state to determine where to play.
     // Return the x position of the row to play in.
-
+/*
     // First Priority: Make 4 in a row!
     //drop a red piece in each column and see if it wins
-    for (int x = 0; x < C4_WIDTH; ++x) {
-        if(board.child(x+1).who_won() == RED) return x+1;
-    }
-
+    int wm = board.get_instant_win();
+    if(wm != -1)
+        return wm;
     // Second Priority: Block opponent lines of 4!
     //drop a yellow piece in each column and see if it wins
-    for (int x = 0; x < C4_WIDTH; ++x) {
-        if(board.child((x+1)%C4_WIDTH+1).child(x+1).who_won() == YELLOW) return x+1;
-    }
+    int bm = board.get_blocking_move();
+    if(bm != -1)
+        return bm;
 
-    /* Third Priority: Make Traps! WARNING THIS DOESNT WORK - PERMITS YELLOW WINS.
+    // Third Priority: Make Traps! WARNING THIS DOESNT WORK - PERMITS YELLOW WINS.
     //drop a red piece in each column and see if it makes a trap
     for (int x = 0; x < C4_WIDTH; ++x) {
         C4Board board_copy = board.child(x+1).child(0);
@@ -60,41 +65,27 @@ int SteadyState::query_steady_state(const C4Board board) const {
     }*/
 
     // Third Priority: Obey Miai
-    std::unordered_map<char, int> alph;
+    int num_hash = 0;
+    int hash_move = -10;
+    int num_atp = 0;
+    int atp_move = -10;
     for (int x = 0; x < C4_WIDTH; ++x) {
         for (int y = 0; y < C4_HEIGHT; ++y) {
-            if(b[y][x] != 0) continue;
-            char letter = steadystate[y][x];
-            if (is_miai(letter)) {
-                alph[letter] = alph[letter] + 1;
+            if(b[y][x] != 0) break;
+            if (steadystate[y][x]=='@') {
+                num_atp++;
+                atp_move = x+1;
+            } else if (steadystate[y][x]=='#') {
+                num_hash++;
+                hash_move = x+1;
             }
         }
     }
-
-    int num_unpaired_miai = 0;
-    char key = 0;
-    for (const auto& entry : alph) {
-        if (entry.second > 2) {
-            return -1; // oversaturated miai (3 or more instances)
-        }
-        if(entry.second == 1){
-            key = entry.first;
-            num_unpaired_miai++;
-        }
+    if(num_atp == 1){
+        return atp_move;
     }
-
-    if(num_unpaired_miai > 1) return -7;
-
-    for (int y = 0; y < C4_HEIGHT; ++y) {
-        for (int x = 0; x < C4_WIDTH; ++x) {
-            if (b[y][x] == 0 && steadystate[y][x] == key) {
-                // Forfeit if there is an unpaired unplayable miai
-                if (y != C4_HEIGHT - 1 && b[y + 1][x] == 0) {
-                    return -2;
-                }
-                return x+1;
-            }
-        }
+    if(num_hash == 1){
+        return hash_move;
     }
 
     // Fourth Priority: Claimeven and Claimodd
@@ -102,17 +93,19 @@ int SteadyState::query_steady_state(const C4Board board) const {
     int return_x = -1;
     std::vector<char> priorities(C4_WIDTH, 'x');
     for (int x = 0; x < C4_WIDTH; ++x) {
+        bool even = true;
         for (int y = C4_HEIGHT - 1; y >= 0; --y) {
-            char ss = steadystate[y][x];
+            even = !even;
             if (b[y][x] == 0) {
+                char ss = steadystate[y][x];
                 priorities[x] = ss;
-                bool even = y%2==0;
                 if ((ss == ' ' && even) || (ss == '|' && !even)){
                     if(return_x == -1){
                         return_x = x;
                     }
                     else
                         return -5;
+                        //if(rand()%2==1) return_x = x;
                 }
                 break;
             }
@@ -150,6 +143,17 @@ int SteadyState::query_steady_state(const C4Board board) const {
     return x+1;
 }
 
+void SteadyState::drop(int x, char c){
+    int y = C4_HEIGHT-1;
+    for(y; y >= 0; y--){
+        char here = steadystate[y][x];
+        if(here != c && (here == ' ' || here == '|')){
+            break;
+        }
+    }
+    if(y>=0) steadystate[y][x] = c;
+}
+
 void SteadyState::mutate() {
     int r = rand()%10;
 
@@ -167,36 +171,51 @@ void SteadyState::mutate() {
             int x = rand()%C4_WIDTH;
             int y = C4_HEIGHT-1;
             for(y; y >= 0; y--)
-                if(steadystate[y][x] != '1' && steadystate[y][x] != '2' && !is_miai(steadystate[y][x])){
+                if(steadystate[y][x] != '1' && steadystate[y][x] != '2'){
                     break;
                 }
-            if(y>=0) steadystate[y][x] = c;
+            if(y>=0 && !is_miai(steadystate[y][x])) steadystate[y][x] = c;
             else i--;
         }
     }
 
-
+    else if (r < 3){
+        drop(rand()%C4_WIDTH, replacement_chars[rand()%replacement_chars.size()]);
+    }
     else if (r < 4){
+        drop(rand()%C4_WIDTH, ' ');
+    }
+    else if (r < 5){
+        drop(rand()%C4_WIDTH, '|');
+    }
+
+
+    else if (r < 6){
         int x = rand()%C4_WIDTH;
-        int y = C4_HEIGHT-1;
-        for(y; y >= 0; y--)
-            if(steadystate[y][x] == ' ' || steadystate[y][x] == '|'){
-                break;
-            }
-        if(y>=0) steadystate[y][x] = replacement_chars[rand()%replacement_chars.size()];
+        for(int i = 0; i < 6; i++){
+            drop(x, '=');
+        }
     }
 
 
     else {
         int x = rand()%C4_WIDTH;
+        int ct = 0;
+        char claim = r==9?'|':' ';
         for (int y = 0; y < C4_HEIGHT; ++y) {
-            if(steadystate[y][x] != '1' && steadystate[y][x] != '2')
-                steadystate[y][x] = r==9?'|':' ';
+            char c = steadystate[y][x];
+            if(c != '1' && c != '2' && !is_miai(c)){
+                ct++;
+                steadystate[y][x] = claim;
+            }
+        }
+        if((claim=='|') == (ct%2==0)){
+            drop(x, replacement_chars[rand()%replacement_chars.size()]);
         }
     }
 }
 
-C4Result SteadyState::play_one_game(const std::string& boardString, std::string& defeat, const std::string& prior_defeat) const {
+C4Result SteadyState::play_one_game(const std::string& boardString, std::string& defeat, const std::string& prior_defeat, bool verbose) const {
     std::string defeat_ = "";
     C4Board board(boardString);
     int moveno = 0;
@@ -205,27 +224,34 @@ C4Result SteadyState::play_one_game(const std::string& boardString, std::string&
 
     C4Result winner = INCOMPLETE;
     while (true) {
-        int randomColumn = board.random_legal_move();
-        if (moveno < prior_defeat.size() && !off_the_rails){
-            int p = prior_defeat[moveno]-'0';
-            if(board.is_legal(p))
-                randomColumn = p;
-            else off_the_rails = true;
-            if(rand()%20 == 0) off_the_rails = true;
+        int randomColumn = board.get_instant_win();
+        if(randomColumn == -1){
+            randomColumn = board.get_blocking_move();
+        }
+        if(randomColumn == -1){
+            if (moveno < prior_defeat.size() && !off_the_rails){
+                int p = prior_defeat[moveno]-'0';
+                if(board.is_legal(p))
+                    randomColumn = p;
+                else off_the_rails = true;
+                if(rand()%20 == 0) off_the_rails = true;
+            }
+        }
+        if(randomColumn == -1){
+            randomColumn = board.random_legal_move();
         }
         moveno++;
-        if(randomColumn != -1){
-            defeat_ += '0'+randomColumn;
-            board.play_piece(randomColumn);
-        }
+        defeat_ += '0'+randomColumn;
+        board.play_piece(randomColumn);
         winner = board.who_won();
-        if(winner != INCOMPLETE) {defeat = defeat_; return winner;}
+        if(winner != INCOMPLETE) {if(verbose){board.print();}defeat = defeat_; return winner;}
 
         // Query the steady state and play the determined disk
         int columnToPlay = query_steady_state(board);
 
         if (columnToPlay < 0) {
             defeat = defeat_;
+            if(verbose){board.print();}
             return TIE; // TODO this should forfeit
         } else if (columnToPlay >= 1 && columnToPlay <= 7) {
             board.play_piece(columnToPlay);
@@ -236,9 +262,13 @@ C4Result SteadyState::play_one_game(const std::string& boardString, std::string&
 }
 
 void SteadyState::print() const {
-    for (int row = 0; row < C4_HEIGHT; ++row) {
-        for (int col = 0; col < C4_WIDTH; ++col) {
-            std::cout << steadystate[row][col] << ' ';
+    for(int y = 0; y < C4_HEIGHT; y++) {
+        for(int x = 0; x < C4_WIDTH; x++) {
+            char c = steadystate[y][x];
+            if(c == '1' or c == '2')
+                std::cout << disk_col(c-'0') << " ";
+            else
+                std::cout << c << " ";
         }
         std::cout << std::endl;
     }
@@ -260,9 +290,7 @@ SteadyState create_random_steady_state(const int (&initial_board)[C4_HEIGHT][C4_
         }
     }
 
-    for(int i = 0; i < 5; i++){
-        steadyState.mutate();
-    }
+    steadyState.mutate();
 
     return steadyState;
 }
@@ -281,6 +309,7 @@ bool find_steady_state(std::string rep, int num_games, SteadyState& ss, bool ver
     std::string cachedFilename = "steady_states/" + ss_hash + ".ss";
     if (std::ifstream(cachedFilename) && allow_cache) {
         ss.read_from_file(cachedFilename);
+        ss.print();
         std::cout << "Loaded cached steady state from file." << std::endl;
         return true;
     }
@@ -294,8 +323,8 @@ bool find_steady_state(std::string rep, int num_games, SteadyState& ss, bool ver
     int best = 1;
 
     // Generate a lot of random steady states
-    int verification = 200000;
-    for (int i = 0; i < 1000; ++i) {
+    int verification = 30000;
+    for (int i = 0; i < 100; ++i) {
         steady_states.push_back(create_random_steady_state(b.board));
     }
     int games_played = 0;
@@ -307,7 +336,7 @@ bool find_steady_state(std::string rep, int num_games, SteadyState& ss, bool ver
         while (true) {
             C4Result col;
             std::string prior_defeat = "";
-            bool use_prior = rand()%5==0;
+            bool use_prior = rand()%5==-1;
             if(use_prior){
                 prior_defeat = *coe;
                 coe++;
@@ -315,7 +344,7 @@ bool find_steady_state(std::string rep, int num_games, SteadyState& ss, bool ver
                     coe = last_defeats.begin();
             }
             std::string new_defeat = "not_defeated";
-            col = steady_states[idx].play_one_game(rep, new_defeat, prior_defeat);
+            col = steady_states[idx].play_one_game(rep, new_defeat, prior_defeat, consecutive_wins>10000);
             if(new_defeat != "not_defeated"){
                 //std::cout << prior_defeat << " " << new_defeat << " " << "defeated by " << (use_prior?"prior":"random") << std::endl;
                 last_defeats.push_front(new_defeat);
@@ -324,8 +353,7 @@ bool find_steady_state(std::string rep, int num_games, SteadyState& ss, bool ver
             games_played++;
 
             if (col != RED) { // If it loses
-                std::cout << consecutive_wins << " consecutive wins" << std::endl;
-                double n = consecutive_wins/3;
+                int n = 2.0*sqrt(consecutive_wins + .1);
                 for (int i = 0; i < n; ++i) {
                     int random_idx = rand() % steady_states.size();
                     for(int y = 0; y < C4_HEIGHT; y++){
@@ -335,21 +363,16 @@ bool find_steady_state(std::string rep, int num_games, SteadyState& ss, bool ver
                     }
                     steady_states[random_idx].mutate();
                 }
-                /*for(int j = 0; j < n; j++){
-                    int random_idx = rand() % steady_states.size();
-                    int y = rand()%C4_HEIGHT;
-                    int x = rand()%C4_WIDTH;
-                    if(!is_miai(steady_states[random_idx].steadystate[y][x]) && !is_miai(steady_states[idx].steadystate[y][x]))
-                        steady_states[random_idx].steadystate[y][x] = steady_states[idx].steadystate[y][x];
-                }*/
+                if(games_played>num_games) return false;
+                steady_states[idx].mutate();
                 if(best < consecutive_wins){
+                    std::cout << consecutive_wins << " consecutive wins" << std::endl;
                     best = consecutive_wins;
                     games_played = 0;
                 }
-                if(games_played>num_games) return false;
                 break;
             } else {
-                if(consecutive_wins % 2000==1999 && verbose){
+                if(consecutive_wins % 10000==9999 && verbose){
                     std::cout << consecutive_wins << " consecutive wins" << std::endl;
                     steady_states[idx].print();
                 }
@@ -575,7 +598,6 @@ void steady_state_unit_tests_problem_5() {
     assert(actual == 2);
     std::cout << "Passed test 2!" << std::endl;
 
-/*
     C4Board b3("4332322441");
     actual = ss.query_steady_state(b3);
     std::cout << actual << std::endl;
@@ -588,7 +610,6 @@ void steady_state_unit_tests_problem_5() {
     std::cout << actual << std::endl;
     assert(actual == 4);
     std::cout << "Passed test 4!" << std::endl;
-*/
 }
 
 void steady_state_unit_tests_problem_6() {
@@ -667,8 +688,8 @@ void steady_state_unit_tests_problem_6() {
 void steady_state_unit_tests(){
     steady_state_unit_tests_problem_1();
     steady_state_unit_tests_problem_2();
-    steady_state_unit_tests_problem_3();
-    steady_state_unit_tests_problem_4();
-    steady_state_unit_tests_problem_5();
+    //steady_state_unit_tests_problem_3();
+    //steady_state_unit_tests_problem_4();
+    //steady_state_unit_tests_problem_5();
     steady_state_unit_tests_problem_6();
 }

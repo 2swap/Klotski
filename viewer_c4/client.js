@@ -7,10 +7,10 @@ let tick = 0;
 let ox = 0; let oy = 100; let zoom = 1;
 let alpha = 0, beta=0;
 let graphbutton = false;
-//var save_start_board = board_string;
 
 var config = {
     blurbs: {options:["Invisible", "Visible"], select:0},
+    solutions: {options:["Invisible", "Visible"], select:0},
 };
 
 $(document).ready(async function() {
@@ -25,15 +25,16 @@ $(document).ready(async function() {
         var blurb = parsedData.blurb;
         var board_h = parsedData.board_h;
         var board_w = parsedData.board_w;
-        var board_string = parsedData.board_string;
         var histogram_non_solutions = parsedData.histogram_non_solutions;
         var histogram_solutions = parsedData.histogram_solutions;
         var nodes_to_use = parsedData.nodes_to_use;
         var rushhour = parsedData.rushhour;
 
         let nodes = {};
+        var boardctx = false;
 
         increment_max();
+        reset_hash();
 
         function increment_max(){
             var max_x = 0;
@@ -42,7 +43,6 @@ $(document).ready(async function() {
             }
             for (const name in nodes_to_use){
                 node = nodes_to_use[name];
-                hash = name;
                 nodes[name] = node;
                 node.x*=w*.2/max_x;
                 node.y*=w*.2/max_x;
@@ -50,7 +50,17 @@ $(document).ready(async function() {
                 delete nodes_to_use[name];
             }
         }
+        function reset_hash(){
+            for (const name in nodes){
+                if(nodes[name].dist == 0) hash = name;
+            }
+            render();
+            if(boardctx)render_board();
+        }
 
+        var dEMPTY      = "#026";
+        var dRED        = "#900";
+        var dYELLOW     = "#760";
         var EMPTY       = "#049";
         var RED         = "#f00";
         var YELLOW      = "#ff0";
@@ -65,14 +75,14 @@ $(document).ready(async function() {
                     const neighbor = nodes[neighbor_name];
                     if(typeof neighbor == "undefined") continue;
                     if(name < neighbor_name) continue;
-                    graphctx.strokeStyle = node.representation.length%2==0?YELLOW:RED;
+                    graphctx.strokeStyle = Math.min(node.representation.length, neighbor.representation.length)%2==1?YELLOW:RED;
                     if(node.highlight && neighbor.highlight) {graphctx.strokeStyle = "lime"; graphctx.lineWidth = 1;}
                     graphctx.beginPath();
                     graphctx.moveTo(node.screen_x, node.screen_y);
                     graphctx.lineTo(neighbor.screen_x, neighbor.screen_y);
                     graphctx.stroke();
                 }
-                if(config.blurbs.select == 1 && c4[node.representation] != undefined && (c4[node.representation].name.length > 0 || c4[node.representation].blurb.length > 0)){
+                if((config.solutions.select == 1 && node.solution_dist == 0) || (config.blurbs.select == 1 && c4[node.representation] != undefined && (c4[node.representation].name.length > 0 || c4[node.representation].blurb.length > 0))){
                     graphctx.globalAlpha = 1;
                     graphctx.strokeStyle = `white`;
                     graphctx.beginPath();
@@ -96,7 +106,8 @@ $(document).ready(async function() {
             graphctx.font = "16px Arial";
             graphctx.fillText("Controls", 20, y+=16)
             graphctx.fillText("[R] to reset", 20, y+=16)
-            graphctx.fillText("[A/D] rotate graph", 20, y+=16)
+            graphctx.fillText("[WASD] rotate graph", 20, y+=16)
+            graphctx.fillText("[Q] Show Solutions: " + config.solutions.options[config.solutions.select], 20, y+=16)
             graphctx.fillText("[arrows] to pan", 20, y+=16)
             graphctx.fillText("[click] on a node!", 20, y+=16)
         }
@@ -177,7 +188,6 @@ $(document).ready(async function() {
                 y: e.clientY - rect.top
             };
             hash = get_closest_node_to(screen_coords);
-            board_string = nodes[hash].representation;
             render();
             render_board();
         }, false);
@@ -206,7 +216,8 @@ $(document).ready(async function() {
             if (c == 83) beta -= .04;
             if (c == 87) beta += .04;
             if (c == 66) config.blurbs.select = (config.blurbs.select+1)%config.blurbs.options.length;
-            if (c == 82) board_string = save_start_board;
+            if (c == 81) config.solutions.select = (config.solutions.select+1)%config.solutions.options.length;
+            if (c == 82) reset_hash();
             render();
         }
 
@@ -225,7 +236,7 @@ $(document).ready(async function() {
         const boardcanvas = document.getElementById(`board`);
         boardcanvas.width = (parseInt(board_w)+1)*square_sz;
         boardcanvas.height = (parseInt(board_h)+1)*square_sz;
-        const boardctx = boardcanvas.getContext(`2d`);
+        boardctx = boardcanvas.getContext(`2d`);
 
         let boardbutton = false;
         let board_click_start = {x:0,y:0};
@@ -242,28 +253,35 @@ $(document).ready(async function() {
 
          boardctx.fillStyle = col;
          boardctx.beginPath();
-         boardctx.arc(px, py, 20, 0, 2*Math.PI, false);
+         boardctx.arc(px, py, 18, 0, 2*Math.PI, false);
          boardctx.fill();
+         var ss = String.fromCharCode(nodes[hash].data.steadystate[5-y][x]);
+         if(ss == '1' || ss == '2') return;
+         boardctx.fillStyle = "white";
+         boardctx.fillText(ss, px, py+9);
         }
 
 
         function render_board () {
             boardcanvas.width = boardcanvas.width;
+            boardctx.font = "24px Arial";
+            boardctx.textAlign = "center";
         var grid = [];
         for(let y=0; y<6; y++) {
          grid[y] = [];
          for(let x=0; x<7; x++) {
-          grid[y][x] = EMPTY;
+          grid[y][x] = dEMPTY;
          }
         }
+        var board_string = nodes[hash].representation;
         console.log(board_string)
         for (var i = 0; i < board_string.length; i++){
          var x = String.fromCharCode(board_string.charCodeAt(i))-1;
 
          // place the piece
-         var col = (i%2==0)?RED:YELLOW;
+         var col = (i%2==0)?dRED:dYELLOW;
          for (var y=0; y<6; y++) {
-          if(grid[y][x] === EMPTY){
+          if(grid[y][x] === dEMPTY){
            grid[y][x] = col;
               break;
           }

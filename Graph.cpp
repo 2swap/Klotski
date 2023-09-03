@@ -95,7 +95,7 @@ public:
                 nodes.find(id)->second.neighbors.insert((*it)->get_hash());
                 add_node(*it, dist);
             }
-            iterate_physics(10);
+            iterate_physics(3);
             render_json("viewer_c4/data.json");
             make_edges_bidirectional();
         }
@@ -183,7 +183,8 @@ public:
      * Mark the distances of nodes from the solutions.
      * @param solutions The set of solution node hashes.
      */
-    void mark_distances(std::set<double> solutions){
+    void mark_distances(){
+        std::set<double> solutions = get_solutions();
         bfs_queue = std::queue<std::pair<double, int>>(); // clear it
         for(double solution : solutions){
             bfs_queue.push(std::make_pair(solution, 0));
@@ -381,7 +382,6 @@ public:
         myfile.open(filename);
 
         json json_data;
-        json_data["blurb"] = nodes.find(root_node_hash)->second.data->blurb;
 
         json nodes_to_use;
         for (auto it = nodes.begin(); it != nodes.end(); ++it) {
@@ -393,6 +393,7 @@ public:
             node_info["z"] = it->second.z;
             node_info["representation"] = it->second.data->representation;
             node_info["highlight"] = it->second.highlight;
+            node_info["data"] = it->second.data->get_data();
 
             std::ostringstream oss;
             oss << std::setprecision(std::numeric_limits<double>::digits10 + 2) << it->first;
@@ -409,6 +410,7 @@ public:
         }
 
         json_data["nodes_to_use"] = nodes_to_use;
+        json_data["nodes_to_use"].dump(4, ' ', false, json::error_handler_t::ignore);
 
         json histogram_non_solutions;
         for (const auto& it : dist_count) {
