@@ -280,10 +280,7 @@ int C4Board::burst() const{
     }
 
     std::vector<int> winning_columns = get_winning_moves();
-    if (winning_columns.size() == 1) {
-        // Single winning column
-        return winning_columns[0];
-    } else if (winning_columns.size() == 0){
+    if (winning_columns.size() == 0){
         std::cout << "error!" << std::endl;
         exit(1);
     }
@@ -292,8 +289,8 @@ int C4Board::burst() const{
     //drop a red piece in each column and see if it is in the graph
     for (int i = 0; i < winning_columns.size(); ++i) {
         int x = winning_columns[i];
-        std::cout << representation <<x<< " added since it is in the graph already" << std::endl;
-        if(graph.node_exists(child(x).get_hash())) return x;
+        if(graph.node_exists(child(x).get_hash())) {
+        std::cout << representation <<x<< " added since it is in the graph already" << std::endl;return x;}
     }
 
     // Next Priority: Test for easy steadystates!
@@ -318,8 +315,10 @@ int C4Board::burst() const{
         int bm = forcing.get_blocking_move();
         if(bm != -1){
             int recurse = forcing.child(bm).burst();
-            std::cout << forcing.representation<<bm << " added recursively" << std::endl;
-            if(recurse != -1) return x;
+            if(recurse != -1) {
+                std::cout << forcing.representation<<bm << " added recursively" << std::endl;
+                return x;
+            }
         }
     }
 
@@ -334,6 +333,15 @@ int C4Board::get_human_winning_fhourstones() {
     }
 
     std::vector<int> winning_columns = get_winning_moves();
+    if (winning_columns.size() == 1) {
+        // Single winning column
+        char wc = winning_columns[0];
+        std::cout << representation<<wc << " added as the only winning move" << std::endl;
+        return wc;
+    } else if (winning_columns.size() == 0){
+        std::cout << "error!" << std::endl;
+        exit(1);
+    }
 
     print();
 
