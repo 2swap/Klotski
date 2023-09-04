@@ -5,7 +5,7 @@
 #include "Graph.cpp"
 #include "KlotskiBoard.cpp"
 
-Graph<KlotskiBoard*> graph;
+Graph<KlotskiBoard> graph;
 
 int main(int argc, char** argv){
     srand(time(NULL));
@@ -14,9 +14,9 @@ int main(int argc, char** argv){
 
     std::cout << "Reading board..." << std::endl;
     KlotskiBoard* b = new KlotskiBoard(argv[1]);
-    graph.add_node(b, 0);
+    graph.add_to_stack(b);
 
-    graph.expand_graph();
+    graph.expand_graph_dfs();
 
     std::cout << "nodes count = " << graph.size() << std::endl;
     graph.mark_distances();

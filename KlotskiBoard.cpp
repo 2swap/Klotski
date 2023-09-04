@@ -55,6 +55,15 @@ public:
         delete[] representation;
     }
 
+    json get_data() const {
+        json data;  // Create a JSON object
+
+        data["blurb"] = blurb;
+        data["rushhour"] = rushhour;
+
+        return data;
+    }
+
     void print() const override {
         std::cout << std::endl;
         for(int y = 0; y < BOARD_HEIGHT; y++) {
@@ -103,21 +112,7 @@ public:
     }
 
     double board_specific_reverse_hash() override {
-        compute_letters();
-        double hash_in_progress = 0;
-        std::set<double> s;
-        for (const char& letter: letters) {
-            double sum = 0;
-            for(int y = 0; y < BOARD_HEIGHT; y++)
-                for(int x = 0; x < BOARD_WIDTH; x++)
-                    if(representation[y*BOARD_WIDTH+(BOARD_WIDTH-1-x)] == letter){
-                        int i=y*BOARD_WIDTH+x;
-                        sum += sin((i+1)*cbrt(i+2));
-                    }
-            s.insert(cbrt(sum));
-        }
-        for(double d : s) hash_in_progress += d;
-        return hash_in_progress;
+        return 1;
     }
 
     bool can_move_piece(char letter, int dy, int dx){
@@ -152,6 +147,7 @@ public:
                     rep[position] = letter_here;
             }
         KlotskiBoard* new_KlotskiBoard = new KlotskiBoard(BOARD_HEIGHT, BOARD_WIDTH, rep);
+        new_KlotskiBoard->rushhour = rushhour;
         return new_KlotskiBoard;
     }
 

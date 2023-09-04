@@ -172,6 +172,7 @@ C4Result C4Board::who_is_winning(int& work) {
     std::cout << "Calling fhourstones on " << command << "... ";
     FILE* pipe = popen(command, "r");
     if (!pipe) {
+        std::cout << "error!" << std::endl;
         exit(1);
     }
     char buffer[4096];
@@ -272,6 +273,26 @@ std::vector<int> C4Board::get_winning_moves() const{
     return ret;
 }
 
+int getCachedChoice(const std::string& representation) {
+    // Open the cache file in read mode
+    std::ifstream cacheFile("cache.txt");
+    if (cacheFile.is_open()) {
+        std::string line;
+        while (std::getline(cacheFile, line)) {
+            size_t delimiterPos = line.find(": ");
+            if (delimiterPos != std::string::npos) {
+                std::string rep = line.substr(0, delimiterPos);
+                if (rep == representation) {
+                    int cachedChoice = std::stoi(line.substr(delimiterPos + 2));
+                    return cachedChoice;
+                }
+            }
+        }
+        cacheFile.close();
+    }
+    return -1; // Return -1 if no cached choice is found
+}
+
 int C4Board::burst() const{
     int wm = get_instant_win();
     if(wm != -1){
@@ -285,12 +306,37 @@ int C4Board::burst() const{
         exit(1);
     }
 
+    int cachedChoice = getCachedChoice(representation);
+    if (cachedChoice != -1) {
+        std::cout << representation << " has a cached choice: " << cachedChoice << std::endl;
+        for (int i = 0; i < winning_columns.size(); ++i) {
+            int x = winning_columns[i];
+            if(x == cachedChoice) return x;
+        }
+        std::cout << "A cached result is not winning!" << representation << std::endl;
+        exit(1);
+    }
+
     // Add things already in the graph!
     //drop a red piece in each column and see if it is in the graph
     for (int i = 0; i < winning_columns.size(); ++i) {
         int x = winning_columns[i];
         if(graph.node_exists(child(x).get_hash())) {
         std::cout << representation <<x<< " added since it is in the graph already" << std::endl;return x;}
+    }
+
+    // Recurse!
+    for (int i = 0; i < winning_columns.size(); ++i) {
+        int x = winning_columns[i];
+        C4Board forcing = child(x);
+        int bm = forcing.get_blocking_move();
+        if(bm != -1){
+            int recurse = forcing.child(bm).burst();
+            if(recurse != -1) {
+                std::cout << forcing.representation<<bm << " added recursively" << std::endl;
+                return x;
+            }
+        }
     }
 
     // Next Priority: Test for easy steadystates!
@@ -308,21 +354,16 @@ int C4Board::burst() const{
         attempt *= 2;
     }
 
-    // Recurse!
-    for (int i = 0; i < winning_columns.size(); ++i) {
-        int x = winning_columns[i];
-        C4Board forcing = child(x);
-        int bm = forcing.get_blocking_move();
-        if(bm != -1){
-            int recurse = forcing.child(bm).burst();
-            if(recurse != -1) {
-                std::cout << forcing.representation<<bm << " added recursively" << std::endl;
-                return x;
-            }
-        }
-    }
-
     return -1; // no easy line found... casework will be necessary :(
+}
+
+void cacheChoice(const std::string& representation, int choice) {
+    // Open the cache file in append mode
+    std::ofstream cacheFile("cache.txt", std::ios::app);
+    if (cacheFile.is_open()) {
+        cacheFile << representation << ": " << choice << std::endl;
+        cacheFile.close();
+    }
 }
 
 int C4Board::get_human_winning_fhourstones() {
@@ -343,25 +384,27 @@ int C4Board::get_human_winning_fhourstones() {
         exit(1);
     }
 
+    //std::unique_lock<std::mutex> lock(mtx);
+
     print();
 
-    std::cout << "There are multiple winning columns. Please select one:" << std::endl;
+    std::cout << representation << " has multiple winning columns. Please select one:" << std::endl;
     for (size_t i = 0; i < winning_columns.size(); i++) {
         std::cout << "Column " << winning_columns[i] << std::endl;
     }
-    
+
     int choice;
     do {
         std::cout << "Enter your choice: ";
         std::cin >> choice;
-        if (std::cin.fail())
-        {
+        if (std::cin.fail()) {
             std::cout << "ERROR -- You did not enter an integer" << std::endl;
-            std::cin.clear(); 
+            std::cin.clear();
             std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
         }
     } while (std::find(winning_columns.begin(), winning_columns.end(), choice) == winning_columns.end());
 
+    cacheChoice(representation, choice);
     return choice;
 }
 

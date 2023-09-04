@@ -373,8 +373,8 @@ bool find_steady_state(std::string rep, int num_games, SteadyState& ss, bool ver
             } else {
                 if(consecutive_wins > verification){
                     std::cout << "Steady state found after " << games_played << " games." << std::endl;
-                    ss.print();
                     ss = steady_states[idx];
+                    ss.print();
                     std::string filename = "steady_states/" + ss_hash + ".ss";
                     steady_states[idx].write_to_file(filename);
                     return true;

@@ -25,14 +25,12 @@ $(document).ready(async function() {
 
         const parsedData = await response.json();
         // Access different properties from the parsed data
-        var blurb = parsedData.blurb;
         var board_h = parsedData.board_h;
         var board_w = parsedData.board_w;
         var board_string = parsedData.board_string;
-        var histogram_non_solutions = parsedData.histogram_non_solutions;
-        var histogram_solutions = parsedData.histogram_solutions;
+        //var histogram_non_solutions = parsedData.histogram_non_solutions;
+        //var histogram_solutions = parsedData.histogram_solutions;
         var nodes_to_use = parsedData.nodes_to_use;
-        var rushhour = parsedData.rushhour;
 
         let nodes = {};
 
@@ -55,6 +53,7 @@ $(document).ready(async function() {
                 delete nodes_to_use[name];
             }
         }
+        console.log(hash);
 
         function render_blurb(){
             graphctx.globalAlpha = 1;
@@ -74,10 +73,10 @@ $(document).ready(async function() {
             graphctx.fillText("Slide pieces to move the large piece to the bottom center.", 20, y+=16)
             graphctx.fillText("Controls: rotate with A/D, pan with arrow keys, zoom with mouse wheel.", 20, y+=16)
             graphctx.fillText("You can also click on any position on the graph to 'teleport' to it.", 20, y+=16)*/
-            graphctx.fillText(blurb, 20, y+=16)
+            graphctx.fillText(nodes[hash].data.blurb, 20, y+=16)
         }
 
-        function render_histogram(){
+        /*function render_histogram(){
             var l = histogram_solutions.length;
             var max = 0;
             for(var i = 0; i < l; i++){
@@ -101,7 +100,7 @@ $(document).ready(async function() {
                 bar_width = hs*300/max;
                 graphctx.fillRect(w-bar_width, h*(i-1)/l, bar_width, h/l+1);
             }
-        }
+        }*/
 
         function render_graph() {
             render_lock = true;
@@ -162,7 +161,7 @@ $(document).ready(async function() {
 
             render_graph();
             render_blurb();
-            render_histogram();
+            //render_histogram();
 
             render_lock = false;
         }
@@ -184,7 +183,7 @@ $(document).ready(async function() {
                     best_node = name;
                 }
             }
-            if(min_dist > 30) return hash;
+            if(min_dist > 150) return hash;
             return best_node;
         }
 
@@ -213,6 +212,8 @@ $(document).ready(async function() {
                 x: e.clientX - rect.left,
                 y: e.clientY - rect.top
             };
+
+            console.log(get_closest_node_to(screen_coords));
             board_string = nodes[get_closest_node_to(screen_coords)].representation;
             on_board_change();
         }, false);
@@ -296,7 +297,7 @@ $(document).ready(async function() {
         function in_bounds(min, val, max){ return min <= val && val < max; }
 
         function can_move_piece(dy, dx){
-            if(rushhour==1 && (board_click_square.charCodeAt(0) - 'a'.charCodeAt(0) + dy)%2==0) return false;
+            if(nodes[hash].data.rushhour && (board_click_square.charCodeAt(0) - 'a'.charCodeAt(0) + dy)%2==0) return false;
             for(var y = 0; y < board_h; y++)
                 for(var x = 0; x < board_w; x++){
                     if(board_string.charAt(y*board_w+x) == board_click_square) {

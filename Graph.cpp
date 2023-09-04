@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <iostream>
 #include <fstream>
+#include <thread>
 #include <unordered_set>
 #include <unordered_map>
 #include <map>
@@ -56,6 +57,13 @@ public:
         }
     }
 
+    void add_to_stack(T* t){
+        double hash = t->get_hash();
+        Node<T> n(t);
+        add_node(t);
+        dfs_stack.push(hash);
+    }
+
     /**
      * Add a node to the graph.
      * @param t The data associated with the node.
@@ -79,28 +87,38 @@ public:
     /**
      * Expand the graph by adding neighboring nodes.
      */
-    void expand_graph(bool dfs){
-        std::stack<double> bfs_queue;
-        for(auto it = nodes.begin(); it != nodes.end(); ++it){
-            double node_id = it->first;
-            Node<T>* node = &(it->second);
-            bfs_queue.push(node_id);
-        }
-        while(!bfs_queue.empty()){
-            double pop = bfs_queue.top();
-            bfs_queue.pop();
-            double id = pop;
+    void expand_graph_dfs(){
+        while(true){
+            double id;
+            {
+                //std::unique_lock<std::mutex> lock(mtx);
+                if (dfs_stack.empty()) {
+                    //lock.unlock();  // Unlock the mutex before sleeping
+                    std::this_thread::sleep_for(std::chrono::seconds(1));
+                    std::cout << "Sleeping and awaiting more work..." << std::endl;
+                    return;
+                }
+                id = dfs_stack.top();
+                dfs_stack.pop();
+            }
+
             std::unordered_set<T*> neighbor_nodes = nodes.find(id)->second.data->get_neighbors();
             for(auto it = neighbor_nodes.begin(); it != neighbor_nodes.end(); ++it){
                 double child_hash = (*it)->get_hash();
-                nodes.find(id)->second.neighbors.insert(child_hash);
-                add_node(*it);
-                bfs_queue.push(child_hash);
+                {
+                    //std::unique_lock<std::mutex> lock(mtx);
+                    nodes.find(id)->second.neighbors.insert(child_hash);
+                    if(!node_exists(child_hash)){
+                        add_node(*it);
+                        dfs_stack.push(child_hash);
+                    }
+                }
             }
-            iterate_physics(3);
-            if(rand()%6==0)render_json("viewer_c4/data.json");
+            iterate_physics(1);
+            //if(rand()%6==0)render_json("viewer_c4/data.json");
             make_edges_bidirectional();
         }
+        std::cout << "Finished expansion" << std::endl;
     }
 
     void highlight_nodes(Graph<T>& g){
@@ -384,6 +402,7 @@ public:
         myfile.open(filename);
 
         json json_data;
+        std::cout << "a" << std::endl;
 
         json nodes_to_use;
         for (auto it = nodes.begin(); it != nodes.end(); ++it) {
@@ -410,21 +429,10 @@ public:
 
             nodes_to_use[oss.str()] = node_info;
         }
+        std::cout << "b" << std::endl;
 
         json_data["nodes_to_use"] = nodes_to_use;
         json_data["nodes_to_use"].dump(4, ' ', false, json::error_handler_t::ignore);
-
-        json histogram_non_solutions;
-        for (const auto& it : dist_count) {
-            histogram_non_solutions.push_back(it.second.first);
-        }
-        json_data["histogram_non_solutions"] = histogram_non_solutions;
-
-        json histogram_solutions;
-        for (const auto& it : dist_count) {
-            histogram_solutions.push_back(it.second.second);
-        }
-        json_data["histogram_solutions"] = histogram_solutions;
 
         json_data["board_string"] = nodes.find(root_node_hash)->second.data->representation;
         json_data["board_w"] = nodes.find(root_node_hash)->second.data->BOARD_WIDTH;
@@ -433,6 +441,7 @@ public:
         myfile << std::setw(4) << json_data;
 
         myfile.close();
+        std::cout << "Rendered json!" << std::endl;
     }
 
     /**
@@ -443,6 +452,7 @@ public:
         return nodes.size();
     }
 
+    std::stack<double> dfs_stack;
     std::unordered_map<double, Node<T>> nodes;
     std::map<int, std::pair<int, int>> dist_count;
     double root_node_hash = 0;
