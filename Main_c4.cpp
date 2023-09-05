@@ -49,7 +49,7 @@ int main(int argc, char** argv){
 
     std::cout << "nodes count = " << graph.size() << std::endl;
     graph.iterate_physics(1000);
-    graph.render_json("viewer_c4/data.json");
+    graph.render_json("viewer/c4_data.json");
     
     return 0;
 }

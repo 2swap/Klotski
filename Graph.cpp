@@ -59,6 +59,7 @@ public:
 
     void add_to_stack(T* t){
         double hash = t->get_hash();
+        root_node_hash = hash;
         Node<T> n(t);
         add_node(t);
         dfs_stack.push(hash);
@@ -402,7 +403,6 @@ public:
         myfile.open(filename);
 
         json json_data;
-        std::cout << "a" << std::endl;
 
         json nodes_to_use;
         for (auto it = nodes.begin(); it != nodes.end(); ++it) {
@@ -416,25 +416,25 @@ public:
             node_info["highlight"] = it->second.highlight;
             node_info["data"] = it->second.data->get_data();
 
-            std::ostringstream oss;
-            oss << std::setprecision(std::numeric_limits<double>::digits10 + 2) << it->first;
-
             json neighbors;
             for (const auto& neighbor : it->second.neighbors) {
-                std::ostringstream oss2;
-                oss2 << std::setprecision(std::numeric_limits<double>::digits10 + 2) << neighbor;
-                neighbors.push_back(oss2.str());
+                std::ostringstream oss;
+                oss << std::setprecision(std::numeric_limits<double>::digits10 + 2) << neighbor;
+                neighbors.push_back(oss.str());
             }
             node_info["neighbors"] = neighbors;
 
+            std::ostringstream oss;
+            oss << std::setprecision(std::numeric_limits<double>::digits10 + 2) << it->first;
             nodes_to_use[oss.str()] = node_info;
         }
-        std::cout << "b" << std::endl;
 
         json_data["nodes_to_use"] = nodes_to_use;
         json_data["nodes_to_use"].dump(4, ' ', false, json::error_handler_t::ignore);
 
-        json_data["board_string"] = nodes.find(root_node_hash)->second.data->representation;
+        std::ostringstream oss;
+        oss << std::setprecision(std::numeric_limits<double>::digits10 + 2) << root_node_hash;
+        json_data["root_node_hash"] = oss.str();
         json_data["board_w"] = nodes.find(root_node_hash)->second.data->BOARD_WIDTH;
         json_data["board_h"] = nodes.find(root_node_hash)->second.data->BOARD_HEIGHT;
 

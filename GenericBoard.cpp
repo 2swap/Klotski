@@ -19,21 +19,6 @@ public:
         return hash;
     }
 
-    /*double get_reverse_hash() {
-        if(reverse_hash != 0)
-            return reverse_hash;
-        reverse_hash = board_specific_reverse_hash();
-        return reverse_hash;
-    }*/
-    double get_reverse_hash() {
-        return get_hash();
-    }
-
-    bool is_left(){return get_reverse_hash() > get_hash();}
-    bool is_right(){return get_reverse_hash() < get_hash();}
-    bool is_center(){return get_reverse_hash() == get_hash();}
-
 protected:
     double hash = 0;
-    double reverse_hash = 0;
 };

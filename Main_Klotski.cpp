@@ -24,7 +24,7 @@ int main(int argc, char** argv){
     std::cout << graph.size() << std::endl;
 
     graph.iterate_physics(100);
-    graph.render_json("viewer_klotski/data.json");
+    graph.render_json("viewer/klotski_data.json");
     
     return 0;
 }
