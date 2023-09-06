@@ -16,15 +16,19 @@ int main(int argc, char** argv){
     KlotskiBoard* b = new KlotskiBoard(argv[1]);
     graph.add_to_stack(b);
 
-    graph.expand_graph_dfs();
+    graph.expand_graph_bfs();
+    graph.make_edges_bidirectional();
 
     std::cout << "nodes count = " << graph.size() << std::endl;
     graph.mark_distances();
 
-    std::cout << graph.size() << std::endl;
-
-    graph.iterate_physics(100);
-    graph.render_json("viewer/klotski_data.json");
+    graph.iterate_physics(1000);
+    std::string outname = argv[1];
+    size_t lastSlashPos = outname.find_last_of('/');
+    if (lastSlashPos != std::string::npos) {
+        outname = outname.substr(lastSlashPos + 1);
+    }
+    graph.render_json("viewer/data/" + outname + ".json");
     
     return 0;
 }

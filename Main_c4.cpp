@@ -15,17 +15,19 @@ using json = nlohmann::json;
 #include "C4Board.cpp"
 
 int main(int argc, char** argv){
-    std::cout << "TODO write and read from position cache using hashes along with board strings" << std::endl;
-    exit(1);
+    //std::cout << "TODO write and read from position cache using hashes along with board strings" << std::endl;
+    //exit(1);
     c4_unit_tests();
     steady_state_unit_tests();
     srand(time(NULL));
 
     //SteadyState ss;
-    //find_steady_state("436766444174331", 100000000, ss, true, false);
+    //find_steady_state("43444446", 100000000, ss, true, false);
     //exit(0);
 
-    graph.add_to_stack(new C4Board("4366"));
+    std::string nodestr = "4363";
+
+    graph.add_to_stack(new C4Board(nodestr));
     //graph.add_node(new C4Board("43637563356652421"), 0);
     graph.expand_graph_dfs();
 
@@ -49,7 +51,7 @@ int main(int argc, char** argv){
 
     std::cout << "nodes count = " << graph.size() << std::endl;
     graph.iterate_physics(1000);
-    graph.render_json("viewer/c4_data.json");
+    graph.render_json("viewer/data/"+nodestr+".json");
     
     return 0;
 }

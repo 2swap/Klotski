@@ -131,10 +131,16 @@ function handleClick(event) {
 setInterval(makeMoveAsRed, 300);
 
 function makeMoveAsRed(){
-    if(config.mode.select == 1 && nodes[hash].representation.length%2 == 0)
-        for (let column = 1; column <= 7; column++) {
-            if (makeMove(column)) break;
+    if(nodes[hash].representation.length%2 == 1) return;
+    for(var neighbor_id in nodes[hash].neighbors){
+        var neighbor_hash = nodes[hash].neighbors[neighbor_id];
+        var neighbor = nodes[neighbor_hash];
+        if(neighbor.representation.length > nodes[hash].representation.length){
+            hash = neighbor_hash;
+            on_board_change();
+            return;
         }
+    }
 }
 
 function makeMove(column) {

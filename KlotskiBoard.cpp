@@ -20,6 +20,7 @@ public:
     std::string blurb;
     bool rushhour = true;
     bool symmetrical = false;
+    std::string game_name = "klotski";
 
     KlotskiBoard(char* filename) : GenericBoard() {
         std::ifstream file;

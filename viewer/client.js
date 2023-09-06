@@ -13,29 +13,23 @@ let board_click_square = ';';
 
 var config = {};
 
-var game = "c4";
-// Get the current URL
-var currentUrl = window.location.href;
+var dataset = "4363";
 // Split the URL to get the query string
-var queryString = currentUrl.split('?')[1];
-// Define a default value for "game"
-var defaultGame = "c4";
+var queryString = window.location.href.split('?')[1];
 if (queryString) {
-  // Split the query string into key-value pairs
-  var queryParams = queryString.split('&');
   // Create an object to store the parameters
   var params = {};
   // Iterate through the key-value pairs and store them in the object
-  queryParams.forEach(function (param) {
+  queryString.split('&').forEach(function (param) {
     var keyValue = param.split('=');
     params[keyValue[0]] = keyValue[1];
   });
-  // Get the value of the "game" parameter or use the default value if it's not provided
-  game = params['game'];  
-  // Use the "game" value as needed
+  // Get the value of the "dataset" parameter or use the default value if it's not provided
+  dataset = params['dataset'];  
+  // Use the "dataset" value as needed
 }
 
-console.log("game:", game);
+console.log("dataset:", dataset);
 
 on_board_change = function(){};
 
@@ -68,12 +62,33 @@ cachebust = window.location.href.indexOf("localhost") !== -1 ? "?cachebust=" + n
 
 $(document).ready(async function() {
     try {
-        await loadJS(game + ".js" + cachebust);
 
-        const response = await fetch('data/' + game + '_data.json' + cachebust);
-        if (!response.ok) {
-            throw new Error('Failed to fetch JSON');
+        const datasets_list_response = await fetch('datasets.json' + cachebust);
+        if (!datasets_list_response.ok) {
+            throw new Error('Failed to fetch datasets list');
         }
+        var datasets = await datasets_list_response.json();
+        datasets = datasets.datasets;
+        
+        // Find the index of the current dataset in the array
+        var currentIndex = datasets.indexOf(dataset);
+        // Calculate the index of the next dataset
+        var nextIndex = (currentIndex + 1) % datasets.length;
+        // Get the current URL and split it into parts
+        var currentURL = window.location.href;
+        var urlParts = currentURL.split('?');
+        // Construct the URL for the next dataset
+        var nextDataset = datasets[nextIndex];
+        var nextURL = urlParts[0] + '?dataset=' + nextDataset;
+
+        const specific_dataset_response = await fetch('data/' + dataset + '.json' + cachebust);
+        if (!specific_dataset_response.ok) {
+            throw new Error('Failed to fetch specific dataset');
+        }
+        parsedData = await specific_dataset_response.json();
+        nodes_to_use = parsedData.nodes_to_use;
+
+        await loadJS(parsedData.game_name + ".js" + cachebust);
 
         const graphcanvas = document.getElementById(`graph`);
         const w = graphcanvas.width = window.innerWidth;
@@ -83,9 +98,6 @@ $(document).ready(async function() {
         let tick = 0;
         let ox = 0; let oy = 100; let zoom = 1;
         let alpha = 0.8, beta=0;
-
-        parsedData = await response.json();
-        nodes_to_use = parsedData.nodes_to_use;
 
         nodes = {};
 
@@ -98,6 +110,7 @@ $(document).ready(async function() {
         increment_max();
 
         function increment_max(){
+            var sqrtwh = Math.sqrt(w*h);
             var max_x = 0;
             for (const name in nodes_to_use){
                 max_x = Math.max(nodes_to_use[name].x, max_x);
@@ -105,9 +118,9 @@ $(document).ready(async function() {
             for (const name in nodes_to_use){
                 node = nodes_to_use[name];
                 nodes[name] = node;
-                node.x*=w*.2/max_x;
-                node.y*=w*.2/max_x;
-                node.z*=w*.2/max_x;
+                node.x*=sqrtwh*.2/max_x;
+                node.y*=sqrtwh*.2/max_x;
+                node.z*=sqrtwh*.2/max_x;
                 delete nodes_to_use[name];
             }
         }
@@ -255,6 +268,7 @@ $(document).ready(async function() {
                 if (ch == config[x].key) config[x].select = (config[x].select+1)%config[x].options.length;
             }
             if (ch == 'R') reset_hash();
+            if (ch == 'N') window.location.href = nextURL;
             on_board_change();
         }
 

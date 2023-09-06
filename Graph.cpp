@@ -16,9 +16,6 @@
 #include "json.hpp"
 using json = nlohmann::json;
 
-double dist_bound = 1;
-bool two_dimensions = false;
-
 template <class T>
 class Node {
 public:
@@ -27,8 +24,9 @@ public:
      * @param t The data associated with the node.
      * @param dist The distance of the node from the root.
      */
-    Node(T* t) : data(t) {}
+    Node(T* t, double hash) : data(t), hash(hash) {}
     int dist = 0;
+    double hash = 0;
     int solution_dist = -1;
     bool highlight = false;
     T* data;
@@ -36,7 +34,7 @@ public:
     bool flooded = false;
     double x = (double) rand() / (RAND_MAX), y = (double) rand() / (RAND_MAX), z = (double) rand() / (RAND_MAX);
     double vx = 0, vy = 0, vz = 0;
-    bool physics_new = dist_bound<0;
+    bool physics_new = true;
 };
 
 /**
@@ -60,9 +58,10 @@ public:
     void add_to_stack(T* t){
         double hash = t->get_hash();
         root_node_hash = hash;
-        Node<T> n(t);
+        Node<T> n(t, hash);
         add_node(t);
         dfs_stack.push(hash);
+        bfs_queue.push(hash);
     }
 
     /**
@@ -76,13 +75,13 @@ public:
             delete t;
             return;
         }
-        Node<T> n(t);
+        Node<T> n(t, hash);
         nodes.insert(std::make_pair(hash,n));
         int s = size();
         if(s == 1){
             root_node_hash = hash;
         }
-        if(s%10 == 0) std::cout << s << " nodes and counting..." << std::endl;
+        if(s%100 == 0) std::cout << s << " nodes and counting..." << std::endl;
     }
 
     /**
@@ -115,9 +114,40 @@ public:
                     }
                 }
             }
-            iterate_physics(1);
-            //if(rand()%6==0)render_json("viewer_c4/data.json");
-            make_edges_bidirectional();
+        }
+        std::cout << "Finished expansion" << std::endl;
+    }
+
+    /**
+     * Expand the graph by adding neighboring nodes.
+     */
+    void expand_graph_bfs(){
+        while(true){
+            double id;
+            {
+                //std::unique_lock<std::mutex> lock(mtx);
+                if (bfs_queue.empty()) {
+                    //lock.unlock();  // Unlock the mutex before sleeping
+                    std::this_thread::sleep_for(std::chrono::seconds(1));
+                    std::cout << "Sleeping and awaiting more work..." << std::endl;
+                    return;
+                }
+                id = bfs_queue.front();
+                bfs_queue.pop();
+            }
+
+            std::unordered_set<T*> neighbor_nodes = nodes.find(id)->second.data->get_neighbors();
+            for(auto it = neighbor_nodes.begin(); it != neighbor_nodes.end(); ++it){
+                double child_hash = (*it)->get_hash();
+                {
+                    //std::unique_lock<std::mutex> lock(mtx);
+                    nodes.find(id)->second.neighbors.insert(child_hash);
+                    if(!node_exists(child_hash)){
+                        add_node(*it);
+                        bfs_queue.push(child_hash);
+                    }
+                }
+            }
         }
         std::cout << "Finished expansion" << std::endl;
     }
@@ -303,96 +333,104 @@ public:
      * @param iterations The number of iterations to perform.
      */
     void iterate_physics(int iterations){
-        for(int i = 0; i < iterations; i++) {
+        std::list<Node<T>* > node_list;
+
+        for (auto& node_pair : nodes) {
+            node_list.push_back(&node_pair.second); // Add it to the list
+        }
+
+        for (int i = 0; i < iterations; i++) {
             std::cout << "Spreading out graph, iteration " << i << std::endl;
-            physics_engine();
+            
+            for (auto it = node_list.begin(); it != node_list.end(); ++it) {
+                Node<T>* node = *it;
+                
+                if (node->physics_new) {
+                    double nid = approach_origin(node->hash);
+                    if (!node_exists(nid)) continue;
+                    Node<T>& happyneighbor = nodes.find(nid)->second;
+                    node->x = happyneighbor.x + (double)rand() / RAND_MAX;
+                    node->y = happyneighbor.y + (double)rand() / RAND_MAX;
+                    node->z = happyneighbor.z + (double)rand() / RAND_MAX;
+                    node->vx = happyneighbor.vx;
+                    node->vy = happyneighbor.vy;
+                    node->vz = happyneighbor.vz;
+                }
+            }
+
+            int mod_outer = 0;
+            for (auto it = node_list.begin(); it != node_list.end(); ++it) {
+                mod_outer++;
+                Node<T>* node = *it;
+                
+                node->physics_new = false;
+                int mod_inner = 0;
+                
+                for (auto it2 = node_list.begin(); it2 != node_list.end(); ++it2) {
+                    Node<T>* node2 = *it2;
+                    
+                    if (node2->hash >= node->hash) continue;
+                    
+                    double dx = node2->x - node->x;
+                    double dy = node2->y - node->y;
+                    double dz = node2->z - node->z;
+                    double dist_sq = dx * dx + dy * dy + dz * dz;
+                    double dist = std::sqrt(dist_sq);
+                    double invdist = (.5 / (dist + .1)) / dist;
+                    double nx = invdist * dx;
+                    double ny = invdist * dy;
+                    double nz = invdist * dz;
+
+                    node2->vx += nx;
+                    node2->vy += ny;
+                    node2->vz += nz;
+                    node->vx -= nx;
+                    node->vy -= ny;
+                    node->vz -= nz;
+                }
+                
+                std::unordered_set<double> neighbor_nodes = node->neighbors;
+                
+                for (double neighbor_id : neighbor_nodes) {
+                    Node<T>& neighbor = nodes.find(neighbor_id)->second;
+                    
+                    if (neighbor_id >= node->hash) continue;
+                    
+                    double dx = node->x - neighbor.x;
+                    double dy = node->y - neighbor.y;
+                    double dz = node->z - neighbor.z;
+                    double dist_sq = dx * dx + dy * dy + dz * dz;
+                    double dist = std::sqrt(dist_sq);
+                    double force = (.4 * (dist - 1)) / (dist+.1);
+                    force *= force;
+                    double nx = force * dx;
+                    double ny = force * dy;
+                    double nz = force * dz;
+                    
+                    neighbor.vx += nx;
+                    neighbor.vy += ny;
+                    neighbor.vz += nz;
+                    node->vx -= nx;
+                    node->vy -= ny;
+                    node->vz -= nz;
+                }
+            }
+
+            double decay = .9;
+
+            for (auto it = node_list.begin(); it != node_list.end(); ++it) {
+                Node<T>* node = *it;
+                
+                node->vx *= decay;
+                node->vy *= decay;
+                node->vz *= decay;
+                node->x += node->vx;
+                node->y += node->vy;
+                node->z += node->vz;
+            }
         }
     }
 
-    /**
-     * Run the physics engine to update node positions based on forces.
-     */
-    void physics_engine(){
-        dist_bound += 0.125;
-        for(auto it = nodes.begin(); it != nodes.end(); ++it){
-            Node<T>* node = &(it->second);
-            if(node->physics_new) {
-                double nid = approach_origin(it->first);
-                if(!node_exists(nid)) continue;
-                Node<T>* happyneighbor = &(nodes.find(nid)->second);
-                node->x = happyneighbor->x + (double) rand() / (RAND_MAX);
-                node->y = happyneighbor->y + (double) rand() / (RAND_MAX);
-                node->z = happyneighbor->z + (double) rand() / (RAND_MAX);
-                node->vx = happyneighbor->vx;
-                node->vy = happyneighbor->vy;
-                node->vz = happyneighbor->vz;
-            }
-        }
-
-        for(auto it = nodes.begin(); it != nodes.end(); ++it){
-            Node<T>* node = &(it->second);
-            if(node->dist > dist_bound) continue;
-            node->physics_new = false;
-            for(auto it2 = nodes.begin(); it2 != nodes.end(); ++it2){
-                Node<T>* node2 = &(it2->second);
-                if(node2->dist > dist_bound || it == it2) continue;
-
-                double dx = node2->x - node->x;
-                double dy = node2->y - node->y;
-                double dz = node2->z - node->z;
-                double dist_sq = dx*dx+dy*dy+dz*dz;
-                double dist = two_dimensions?dist_sq+1:std::sqrt(dist_sq);
-
-                double invdist = (.3/(dist+.1))/dist;
-                double nx = invdist * dx;
-                double ny = invdist * dy;
-                double nz = invdist * dz;
-
-                node2->vx += nx;
-                node2->vy += ny;
-                node2->vz += nz;
-                node->vx -= nx;
-                node->vy -= ny;
-                node->vz -= nz;
-            }
-            std::unordered_set<double> neighbor_nodes = node->neighbors;
-            for(double neighbor_id : neighbor_nodes){
-                Node<T>* neighbor = &(nodes.find(neighbor_id)->second);
-                if(neighbor->dist > dist_bound) continue;
-
-                double dx = node->x - neighbor->x;
-                double dy = node->y - neighbor->y;
-                double dz = node->z - neighbor->z;
-                double dist_sq = dx*dx+dy*dy+dz*dz;
-                double dist = two_dimensions?dist_sq+1:std::sqrt(dist_sq);
-                double force = (.2*(dist-1))/dist;
-                force *= force;
-                double nx = force * dx;
-                double ny = force * dy;
-                double nz = force * dz;
-                neighbor->vx += nx;
-                neighbor->vy += ny;
-                neighbor->vz += nz;
-                node->vx -= nx;
-                node->vy -= ny;
-                node->vz -= nz;
-            }
-        }
-
-        double decay = .9;
-
-        for(auto it = nodes.begin(); it != nodes.end(); ++it){
-            Node<T>* node = &(it->second);
-            if(node->dist > dist_bound) continue;
-            node->vx *= decay;
-            node->vy *= decay;
-            node->vz *= decay;
-            node->x += node->vx;
-            node->y += node->vy;
-            node->z += node->vz;
-            if(two_dimensions)node->z = 0;
-        }
-    }
 
     /**
      * Render the graph's data to a JSON file.
@@ -437,6 +475,7 @@ public:
         json_data["root_node_hash"] = oss.str();
         json_data["board_w"] = nodes.find(root_node_hash)->second.data->BOARD_WIDTH;
         json_data["board_h"] = nodes.find(root_node_hash)->second.data->BOARD_HEIGHT;
+        json_data["game_name"] = nodes.find(root_node_hash)->second.data->game_name;
 
         myfile << std::setw(4) << json_data;
 
@@ -453,6 +492,7 @@ public:
     }
 
     std::stack<double> dfs_stack;
+    std::queue<double> bfs_queue;
     std::unordered_map<double, Node<T>> nodes;
     std::map<int, std::pair<int, int>> dist_count;
     double root_node_hash = 0;

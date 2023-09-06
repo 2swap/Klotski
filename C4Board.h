@@ -57,6 +57,7 @@ public:
     int board[C4_HEIGHT][C4_WIDTH];
     Bitboard red_bitboard = 0, yellow_bitboard = 0, both_bitboard = 0;
     std::string blurb = "A connect 4 board.";
+    std::string game_name = "c4";
 
     bool has_steady_state = false;
     SteadyState steadystate;

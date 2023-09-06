@@ -39,23 +39,43 @@ function get_color(name, neighbor_name){
 var square_sz = 40;
 
 function render_board () {
-    boardcanvas.width = (parseInt(parsedData.board_w)+1)*square_sz;
-    boardcanvas.height = (parseInt(parsedData.board_h)+1)*square_sz;
-    for(i = 0; i < 3; i++){
+    boardcanvas.width = (parseInt(parsedData.board_w) + 1) * square_sz;
+    boardcanvas.height = (parseInt(parsedData.board_h) + 1) * square_sz;
+    for (i = 0; i < 3; i++) {
         boardctx.fillStyle = ([`#000`, `#222`, `#000`])[i];
-        var margin = i*square_sz/5;
-        boardctx.fillRect(0+margin, 0+margin, boardcanvas.width-2*margin, boardcanvas.height-2*margin);
+        var margin = i * square_sz / 5;
+        boardctx.fillRect(0 + margin, 0 + margin, boardcanvas.width - 2 * margin, boardcanvas.height - 2 * margin);
     }
-    for (var y = 0; y < parsedData.board_h; y++){
-        for (var x = 0; x < parsedData.board_w; x++){
-            var spot = y*parsedData.board_w+x;
-            console.log(nodes)
-            var charcode = nodes[hash].representation.charCodeAt(spot);
+    for (var y = 0; y < parsedData.board_h; y++) {
+        for (var x = 0; x < parsedData.board_w; x++) {
+            var spot = y * parsedData.board_w + x;
             var character = nodes[hash].representation.charAt(spot);
-            if(character == EMPTY_SPACE) continue;
-            boardctx.fillStyle = color_wheel(72.819*2*charcode);
-            var conddiff = (character == board_click_square && can_move_piece(Math.sign(diffcoords.y), Math.sign(diffcoords.x)))?diffcoords:{x:0,y:0};
-            boardctx.fillRect(boardcanvas.width/2+(x-parsedData.board_w/2)*square_sz+conddiff.x,boardcanvas.height/2+(y-parsedData.board_h/2)*square_sz+conddiff.y,square_sz,square_sz);
+            if (character == EMPTY_SPACE) continue;
+            boardctx.fillStyle = "white";
+            var conddiff = (character == board_click_square && can_move_piece(Math.sign(diffcoords.y), Math.sign(diffcoords.x))) ? diffcoords : { x: 0, y: 0 };
+            
+            // Check if the left and lower two nodes have the same charcode
+            if (x < parsedData.board_w - 1 &&
+                nodes[hash].representation.charAt(spot + 1) == character) {
+                // Render a wide rectangle to connect the two cells
+                boardctx.fillRect(boardcanvas.width / 2 + (x - parsedData.board_w / 2) * square_sz + conddiff.x + 2,
+                                  boardcanvas.height / 2 + (y - parsedData.board_h / 2) * square_sz + conddiff.y + 2,
+                                  square_sz * 2 - 4,
+                                  square_sz - 4);
+            }
+            if (y < parsedData.board_h - 1 &&
+                nodes[hash].representation.charAt(spot + parsedData.board_w) == character) {
+                // Render a wide rectangle to connect the two cells
+                boardctx.fillRect(boardcanvas.width / 2 + (x - parsedData.board_w / 2) * square_sz + conddiff.x + 2,
+                                  boardcanvas.height / 2 + (y - parsedData.board_h / 2) * square_sz + conddiff.y + 2,
+                                  square_sz - 4,
+                                  square_sz * 2 - 4);
+            }
+            // Render a normal rectangle
+            boardctx.fillRect(boardcanvas.width / 2 + (x - parsedData.board_w / 2) * square_sz + conddiff.x + 2,
+                              boardcanvas.height / 2 + (y - parsedData.board_h / 2) * square_sz + conddiff.y + 2,
+                              square_sz - 4,
+                              square_sz - 4);
         }
     }
 }
