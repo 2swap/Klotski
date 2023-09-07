@@ -4,11 +4,8 @@ config = {
     path: {options:["Invisible", "Visible"], select:0, key:'P'},
 };
 const game_blurb = [
-    "This is the 'Setting Sun' puzzle, AKA Klotski.",
-    "The right depicts the graph of all positions of the puzzle.",
-    "You can navigate the white circle by sliding pieces in the top left.",
-    "There are a total of 25,955 unique positions.",
-    "Slide pieces to move the large piece to the bottom center."
+    "Slide the blocks in the puzzle!",
+    "The right depicts the graph of all positions of the puzzle."
 ]
 
 var EMPTY_SPACE = '.';
@@ -31,8 +28,8 @@ function color_wheel(angle, brightness=1){
 }
 
 function get_color(name, neighbor_name){
-    if(config.colors.select == 0) return color_wheel(node.dist);
-    else if(config.colors.select == 1) return color_wheel(node.solution_dist);
+    if(config.colors.select == 0) return color_wheel(nodes[name].dist);
+    else if(config.colors.select == 1) return color_wheel(nodes[name].solution_dist);
     else return "gray";
 }
 

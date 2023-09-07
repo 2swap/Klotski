@@ -34,7 +34,6 @@ public:
     bool flooded = false;
     double x = (double) rand() / (RAND_MAX), y = (double) rand() / (RAND_MAX), z = (double) rand() / (RAND_MAX);
     double vx = 0, vy = 0, vz = 0;
-    bool physics_new = true;
 };
 
 /**
@@ -333,50 +332,26 @@ public:
      * @param iterations The number of iterations to perform.
      */
     void iterate_physics(int iterations){
-        std::list<Node<T>* > node_list;
+        std::vector<Node<T>*> node_vector; // Change from list to vector
 
         for (auto& node_pair : nodes) {
-            node_list.push_back(&node_pair.second); // Add it to the list
+            node_vector.push_back(&node_pair.second); // Add it to the vector
         }
+        int s = node_vector.size();
 
-        for (int i = 0; i < iterations; i++) {
-            std::cout << "Spreading out graph, iteration " << i << std::endl;
-            
-            for (auto it = node_list.begin(); it != node_list.end(); ++it) {
-                Node<T>* node = *it;
-                
-                if (node->physics_new) {
-                    double nid = approach_origin(node->hash);
-                    if (!node_exists(nid)) continue;
-                    Node<T>& happyneighbor = nodes.find(nid)->second;
-                    node->x = happyneighbor.x + (double)rand() / RAND_MAX;
-                    node->y = happyneighbor.y + (double)rand() / RAND_MAX;
-                    node->z = happyneighbor.z + (double)rand() / RAND_MAX;
-                    node->vx = happyneighbor.vx;
-                    node->vy = happyneighbor.vy;
-                    node->vz = happyneighbor.vz;
-                }
-            }
+        for (int n = 0; n < iterations; n++) {
+            if(n%10==0) std::cout << "Spreading out graph, iteration " << n << std::endl;
 
-            int mod_outer = 0;
-            for (auto it = node_list.begin(); it != node_list.end(); ++it) {
-                mod_outer++;
-                Node<T>* node = *it;
-                
-                node->physics_new = false;
-                int mod_inner = 0;
-                
-                for (auto it2 = node_list.begin(); it2 != node_list.end(); ++it2) {
-                    Node<T>* node2 = *it2;
-                    
-                    if (node2->hash >= node->hash) continue;
+            for (size_t i = 0; i < s; ++i) {
+                Node<T>* node = node_vector[i];
+                for (size_t j = i+1; j < s; ++j) {
+                    Node<T>* node2 = node_vector[j];
                     
                     double dx = node2->x - node->x;
                     double dy = node2->y - node->y;
                     double dz = node2->z - node->z;
-                    double dist_sq = dx * dx + dy * dy + dz * dz;
-                    double dist = std::sqrt(dist_sq);
-                    double invdist = (.5 / (dist + .1)) / dist;
+                    double dist_sq = dx * dx + dy * dy + dz * dz + .1;
+                    double invdist = .005 / (dist_sq*dist_sq);
                     double nx = invdist * dx;
                     double ny = invdist * dy;
                     double nz = invdist * dz;
@@ -388,7 +363,6 @@ public:
                     node->vy -= ny;
                     node->vz -= nz;
                 }
-                
                 std::unordered_set<double> neighbor_nodes = node->neighbors;
                 
                 for (double neighbor_id : neighbor_nodes) {
@@ -399,10 +373,9 @@ public:
                     double dx = node->x - neighbor.x;
                     double dy = node->y - neighbor.y;
                     double dz = node->z - neighbor.z;
-                    double dist_sq = dx * dx + dy * dy + dz * dz;
-                    double dist = std::sqrt(dist_sq);
-                    double force = (.4 * (dist - 1)) / (dist+.1);
-                    force *= force;
+                    double dist_sq = dx * dx + dy * dy + dz * dz + 1;
+                    double force = 1/dist_sq + dist_sq - 2;
+                    force /= 20;
                     double nx = force * dx;
                     double ny = force * dy;
                     double nz = force * dz;
@@ -416,10 +389,16 @@ public:
                 }
             }
 
-            double decay = .9;
+            double decay = .8;
 
-            for (auto it = node_list.begin(); it != node_list.end(); ++it) {
-                Node<T>* node = *it;
+            for (size_t i = 0; i < node_vector.size(); ++i) {
+                Node<T>* node = node_vector[i];
+                if(node->vx > 1) node->vx = 1;
+                if(node->vy > 1) node->vy = 1;
+                if(node->vz > 1) node->vz = 1;
+                if(node->vx < -1) node->vx = -1;
+                if(node->vy < -1) node->vy = -1;
+                if(node->vz < -1) node->vz = -1;
                 
                 node->vx *= decay;
                 node->vy *= decay;

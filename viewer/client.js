@@ -13,7 +13,7 @@ let board_click_square = ';';
 
 var config = {};
 
-var dataset = "4363";
+var dataset = "default";
 // Split the URL to get the query string
 var queryString = window.location.href.split('?')[1];
 if (queryString) {
@@ -69,6 +69,7 @@ $(document).ready(async function() {
         }
         var datasets = await datasets_list_response.json();
         datasets = datasets.datasets;
+        if(dataset == 'default') dataset = datasets[0];
         
         // Find the index of the current dataset in the array
         var currentIndex = datasets.indexOf(dataset);
@@ -107,25 +108,50 @@ $(document).ready(async function() {
 
         reset_hash();
 
-        increment_max();
+        resizePointCloud();
 
-        function increment_max(){
-            var sqrtwh = Math.sqrt(w*h);
-            var max_x = 0;
-            for (const name in nodes_to_use){
-                max_x = Math.max(nodes_to_use[name].x, max_x);
+        function resizePointCloud() {
+            var sqrtwh = Math.sqrt(w * h);
+            var min_x = Number.POSITIVE_INFINITY;
+            var max_x = Number.NEGATIVE_INFINITY;
+            var min_y = Number.POSITIVE_INFINITY;
+            var max_y = Number.NEGATIVE_INFINITY;
+            var min_z = Number.POSITIVE_INFINITY;
+            var max_z = Number.NEGATIVE_INFINITY;
+
+            // Compute the min and max values for x, y, and z
+            for (const name in nodes_to_use) {
+                const node = nodes_to_use[name];
+                min_x = Math.min(min_x, node.x);
+                max_x = Math.max(max_x, node.x);
+                min_y = Math.min(min_y, node.y);
+                max_y = Math.max(max_y, node.y);
+                min_z = Math.min(min_z, node.z);
+                max_z = Math.max(max_z, node.z);
             }
-            for (const name in nodes_to_use){
-                node = nodes_to_use[name];
+
+            // Calculate the center of the point cloud
+            var center_x = (min_x + max_x) / 2;
+            var center_y = (min_y + max_y) / 2;
+            var center_z = (min_z + max_z) / 2;
+
+            // Calculate the scale factor
+            var max_dimension = Math.max(max_x - min_x, max_y - min_y, max_z - min_z);
+            var scale_factor = (sqrtwh / 2) / max_dimension;
+
+            // Apply the transformation to each node
+            for (const name in nodes_to_use) {
+                var node = nodes_to_use[name];
+                node.x = (node.x - center_x) * scale_factor;
+                node.y = (node.y - center_y) * scale_factor;
+                node.z = (node.z - center_z) * scale_factor;
                 nodes[name] = node;
-                node.x*=sqrtwh*.2/max_x;
-                node.y*=sqrtwh*.2/max_x;
-                node.z*=sqrtwh*.2/max_x;
                 delete nodes_to_use[name];
             }
         }
 
         function render_blurb(){
+            graphctx.textAlign = 'left';
             graphctx.globalAlpha = 1;
             var y = h - 280;
             graphctx.fillStyle = "white";
@@ -199,14 +225,21 @@ $(document).ready(async function() {
             return str.charAt(0).toUpperCase() + str.slice(1);
         }
 
-        function render () {
+        function render() {
             graphctx.globalAlpha = 1;
             graphctx.fillStyle = `Black`;
             graphctx.fillRect(0, 0, w, h);
+            graphctx.textBaseline = 'bottom';
 
             render_graph();
             render_blurb();
-            //render_histogram();
+            // render_histogram();
+
+            // Add text to the bottom right corner
+            graphctx.fillStyle = 'White';
+            graphctx.font = '32px Arial';
+            graphctx.textAlign = 'right';
+            graphctx.fillText('Press N to view another graph!', w - 10, h - 10);
         }
 
         function get_node_coordinates (hash) {

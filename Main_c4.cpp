@@ -22,7 +22,7 @@ int main(int argc, char** argv){
     srand(time(NULL));
 
     //SteadyState ss;
-    //find_steady_state("43444446", 100000000, ss, true, false);
+    //find_steady_state("43444446", 100000000, ss, false, false);
     //exit(0);
 
     std::string nodestr = "4363";
