@@ -66,6 +66,7 @@ public:
     C4Board(std::string representation);
     json get_data() const;
     int burst() const;
+    int move_wrapper();
     int get_instant_win() const;
     std::vector<int> get_winning_moves() const;
     int get_blocking_move() const;
@@ -74,8 +75,8 @@ public:
     bool is_legal(int x) const;
     C4Result who_won();
     bool is_solution() override;
-    double board_specific_hash() override;
-    double board_specific_reverse_hash() override;
+    double board_specific_hash() const override;
+    double board_specific_reverse_hash() const override;
     void fill_board_from_string(const std::string& rep);
     C4Board* remove_piece();
     void play_piece(int piece);

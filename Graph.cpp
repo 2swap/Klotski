@@ -331,7 +331,7 @@ public:
      * Iterate the physics engine to spread out graph nodes.
      * @param iterations The number of iterations to perform.
      */
-    void iterate_physics(int iterations){
+    void iterate_physics(int iterations, bool sqrty){
         std::vector<Node<T>*> node_vector; // Change from list to vector
 
         for (auto& node_pair : nodes) {
@@ -350,11 +350,17 @@ public:
                     double dx = node2->x - node->x;
                     double dy = node2->y - node->y;
                     double dz = node2->z - node->z;
-                    double dist_sq = dx * dx + dy * dy + dz * dz + .1;
-                    double invdist = .005 / (dist_sq*dist_sq);
-                    double nx = invdist * dx;
-                    double ny = invdist * dy;
-                    double nz = invdist * dz;
+                    double force;
+                    if(sqrty){
+                        double dist = std::sqrt(dx * dx + dy * dy + dz * dz);
+                        force = 1/((dist+.1)*dist);
+                    } else {
+                        double dist_sq = dx * dx + dy * dy + dz * dz + .1;
+                        force = .00025 / (dist_sq*dist_sq);
+                    }
+                    double nx = force * dx;
+                    double ny = force * dy;
+                    double nz = force * dz;
 
                     node2->vx += nx;
                     node2->vy += ny;
@@ -373,9 +379,16 @@ public:
                     double dx = node->x - neighbor.x;
                     double dy = node->y - neighbor.y;
                     double dz = node->z - neighbor.z;
-                    double dist_sq = dx * dx + dy * dy + dz * dz + 1;
-                    double force = 1/dist_sq + dist_sq - 2;
-                    force /= 20;
+                    double force;
+                    if(sqrty){
+                        double dist = std::sqrt(dx * dx + dy * dy + dz * dz);
+                        force = (dist-1)/dist;
+                        force *= force;
+                    } else {
+                        double dist_sq = dx * dx + dy * dy + dz * dz + 1;
+                        force = 1/dist_sq + dist_sq - 2;
+                        force /= 20;
+                    }
                     double nx = force * dx;
                     double ny = force * dy;
                     double nz = force * dz;

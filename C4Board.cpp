@@ -88,7 +88,7 @@ bool C4Board::is_solution() {
     return winner == RED || winner == YELLOW;
 }
 
-double C4Board::board_specific_hash() {
+double C4Board::board_specific_hash() const {
     double a = 1;
     double hash_in_progress = 0;
     for (int i = 0; i < C4_HEIGHT; i++) {
@@ -100,7 +100,7 @@ double C4Board::board_specific_hash() {
     return hash_in_progress;
 }
 
-double C4Board::board_specific_reverse_hash() {
+double C4Board::board_specific_reverse_hash() const {
     double a = 1;
     double hash_in_progress = 0;
     for (int i = 0; i < C4_HEIGHT; i++) {
@@ -325,6 +325,21 @@ int C4Board::burst() const{
         std::cout << representation <<x<< " added since it is in the graph already" << std::endl;return x;}
     }
 
+    // Next Priority: Test for easy steadystates!
+    //drop a red piece in each column and see if it can make a steadystate
+    int attempt = 200;
+    for(int j = 0; j < 7; j++){
+        for (int i = 0; i < winning_columns.size(); ++i) {
+            int x = winning_columns[i];
+            SteadyState ss;
+            if(find_steady_state(child(x).representation, attempt, ss, true)){
+                std::cout << representation<<x << " added since a steadystate was found" << std::endl;
+                return(x);
+            }
+        }
+        attempt *= 2;
+    }
+
     // Recurse!
     for (int i = 0; i < winning_columns.size(); ++i) {
         int x = winning_columns[i];
@@ -339,22 +354,15 @@ int C4Board::burst() const{
         }
     }
 
-    // Next Priority: Test for easy steadystates!
-    //drop a red piece in each column and see if it can make a steadystate
-    int attempt = 80;
-    for(int j = 0; j < 7; j++){
-        for (int i = 0; i < winning_columns.size(); ++i) {
-            int x = winning_columns[i];
-            SteadyState ss;
-            if(find_steady_state(child(x).representation, attempt, ss, true)){
-                std::cout << representation<<x << " added since a steadystate was found" << std::endl;
-                return(x);
-            }
-        }
-        attempt *= 2;
-    }
-
     return -1; // no easy line found... casework will be necessary :(
+}
+
+int C4Board::move_wrapper() {
+    int ret = movecache.GetSuggestedMoveIfExists(get_hash());
+    if(ret != -1) return ret;
+    ret = get_human_winning_fhourstones();
+    movecache.AddOrUpdateEntry(get_hash(), representation, ret);
+    return ret;
 }
 
 void cacheChoice(const std::string& representation, int choice) {
@@ -409,7 +417,7 @@ int C4Board::get_human_winning_fhourstones() {
 }
 
 void C4Board::add_best_winning_fhourstones(std::unordered_set<C4Board*>& neighbors) {
-    C4Board moved = child(get_human_winning_fhourstones());
+    C4Board moved = child(move_wrapper());
     std::cout << moved.representation << " added since it was selected" << std::endl;
     neighbors.insert(new C4Board(moved));
 }
@@ -492,10 +500,7 @@ std::unordered_set<C4Board*> C4Board::get_neighbors(){
                 int bm = get_blocking_move();
                 if(bm != -1 && child(bm).get_instant_win() != -1) break; // if i cant stop an insta win
                 SteadyState ss;
-                bool found = false;
-                for(int i = 0; i < 3 && !found; i++){
-                    found = find_steady_state(representation, 10000, ss, true);
-                }
+                bool found = find_steady_state(representation, 1, ss, true);
                 if(found){
                     has_steady_state = true;
                     steadystate = ss;

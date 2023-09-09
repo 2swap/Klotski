@@ -6,6 +6,7 @@ const int C4_WIDTH = 7;
 
 #include "json.hpp"
 using json = nlohmann::json;
+#include "JsonC4Cache.cpp"
 #include <math.h>
 #include <stdlib.h>
 #include <iostream>
@@ -25,7 +26,8 @@ int main(int argc, char** argv){
     //find_steady_state("43444446", 100000000, ss, false, false);
     //exit(0);
 
-    std::string nodestr = "4363";
+    std::string nodestr = "414";
+    movecache.ReadCache();
 
     graph.add_to_stack(new C4Board(nodestr));
     //graph.add_node(new C4Board("43637563356652421"), 0);
@@ -46,12 +48,14 @@ int main(int argc, char** argv){
         t.join();
     }*/
 
+    graph.make_edges_bidirectional();
     graph.sanitize_for_closure();
     graph.mark_distances();
 
     std::cout << "nodes count = " << graph.size() << std::endl;
-    graph.iterate_physics(1000);
-    graph.render_json("viewer/data/"+nodestr+".json");
+    graph.iterate_physics(1000, true);
+    graph.render_json("viewer/data/" + nodestr + ".json");
+    movecache.WriteCache();
     
     return 0;
 }

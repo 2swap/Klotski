@@ -1,5 +1,5 @@
 config = {
-    mode: {options:["Explore", "Play"], select:0, key:'M'},
+    mode: {options:["Play", "Explore"], select:0, key:'M'},
     solutions: {options:["Invisible", "Visible"], select:0, key:'Q'},
     path: {options:["Invisible", "Visible"], select:0, key:'P'},
 };
@@ -131,7 +131,7 @@ function handleClick(event) {
 setInterval(makeMoveAsRed, 300);
 
 function makeMoveAsRed(){
-    if(nodes[hash].representation.length%2 == 1) return;
+    if(nodes[hash].representation.length%2 == 1 || config.mode.select == 1) return;
     for(var neighbor_id in nodes[hash].neighbors){
         var neighbor_hash = nodes[hash].neighbors[neighbor_id];
         var neighbor = nodes[neighbor_hash];
