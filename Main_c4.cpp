@@ -1,9 +1,5 @@
-const int C4_HEIGHT = 6;
-const int C4_WIDTH = 7;
-
 #include "json.hpp"
 using json = nlohmann::json;
-#include "JsonC4Cache.cpp"
 #include <math.h>
 #include <stdlib.h>
 #include <iostream>

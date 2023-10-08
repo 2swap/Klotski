@@ -81,9 +81,9 @@ public:
             root_node_hash = hash;
         }
         if(s%100 == 0) std::cout << s << " nodes and counting..." << std::endl;
-        iterate_physics(3, true);
+        //iterate_physics(3, true);
         make_edges_bidirectional();
-        render_json("viewer/data/testwithradiant6.json");
+        //render_json("viewer/data/testwithradiant6.json");
     }
 
     /**
@@ -407,14 +407,15 @@ public:
 
             double decay = .8;
 
+            double speedlimit = 10;
             for (size_t i = 0; i < node_vector.size(); ++i) {
                 Node<T>* node = node_vector[i];
-                if(node->vx > 1) node->vx = 1;
-                if(node->vy > 1) node->vy = 1;
-                if(node->vz > 1) node->vz = 1;
-                if(node->vx < -1) node->vx = -1;
-                if(node->vy < -1) node->vy = -1;
-                if(node->vz < -1) node->vz = -1;
+                if(node->vx >  speedlimit) node->vx =  speedlimit;
+                if(node->vy >  speedlimit) node->vy =  speedlimit;
+                if(node->vz >  speedlimit) node->vz =  speedlimit;
+                if(node->vx < -speedlimit) node->vx = -speedlimit;
+                if(node->vy < -speedlimit) node->vy = -speedlimit;
+                if(node->vz < -speedlimit) node->vz = -speedlimit;
                 
                 node->vx *= decay;
                 node->vy *= decay;

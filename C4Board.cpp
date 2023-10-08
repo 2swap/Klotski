@@ -1,7 +1,8 @@
 #pragma once
 
 #include "C4Board.h"
-#include "SteadyState.h"
+#include "SteadyState.cpp"
+#include "JsonC4Cache.cpp"
 
 Graph<C4Board> graph;
 

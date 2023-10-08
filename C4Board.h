@@ -7,6 +7,7 @@
 #include <unordered_set>
 #include <climits>
 #include "GenericBoard.cpp"
+#include "SteadyState.h"
 
 enum C4BranchMode {
     UNION_WEAK,
@@ -14,17 +15,17 @@ enum C4BranchMode {
     SIMPLE_WEAK
 };
 typedef unsigned long int Bitboard;
-C4BranchMode mode = TRIM_STEADY_STATES;
+C4BranchMode mode = SIMPLE_WEAK;
 
-/*std::array<std::string, C4_HEIGHT> ss_list = {
-    "   |@  ",
-    "   |2  ",
-    "  2|2  ",
-    "  1|1  ",
-    "  1|21@",
-    "  12122"
-};
 std::array<std::string, C4_HEIGHT> ss_list = {
+    "   |@  ",
+    "   |1  ",
+    "2 2|1  ",
+    "1 2|2  ",
+    "2 2|12@",
+    "1 11211"
+};
+/*std::array<std::string, C4_HEIGHT> ss_list = {
     "       ",
     "       ",
     " #1  ++",
@@ -32,14 +33,6 @@ std::array<std::string, C4_HEIGHT> ss_list = {
     "#21  --",
     "212  @@"
 };*/
-std::array<std::string, C4_HEIGHT> ss_list = {
-    "@ 21+@|",
-    "2 12+2|",
-    "1 11+2|",
-    "2 12+11",
-    "1221222",
-    "2112121"
-};
 SteadyState ss_simple_weak(ss_list);
 std::unordered_map<std::string, C4Result> cache;
 

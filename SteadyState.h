@@ -6,6 +6,9 @@ class C4Board;
 #include <list>
 #include <array>
 
+const int C4_HEIGHT = 6;
+const int C4_WIDTH = 7;
+
 enum C4Result {
     TIE,
     RED,
