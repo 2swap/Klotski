@@ -81,6 +81,9 @@ public:
             root_node_hash = hash;
         }
         if(s%100 == 0) std::cout << s << " nodes and counting..." << std::endl;
+        iterate_physics(3, true);
+        make_edges_bidirectional();
+        render_json("viewer/data/testwithradiant6.json");
     }
 
     /**

@@ -35,7 +35,7 @@ int SteadyState::query_steady_state(const C4Board board) const {
     int b[C4_HEIGHT][C4_WIDTH];
     for (int y = 0; y < C4_HEIGHT; ++y) {
         for (int x = 0; x < C4_WIDTH; ++x) {
-            b[y][x] = board.board[y][x];
+            b[y][x] = board.piece_code_at(x, y);
         }
     }
     // Given a board, use the steady state to determine where to play.
@@ -275,17 +275,18 @@ void SteadyState::print() const {
     std::cout << std::endl;
 }
 
-SteadyState create_random_steady_state(const int (&initial_board)[C4_HEIGHT][C4_WIDTH]) {
+SteadyState create_random_steady_state(const C4Board& b) {
     SteadyState steadyState;
 
-    for (int row = 0; row < C4_HEIGHT; ++row) {
-        for (int col = 0; col < C4_WIDTH; ++col) {
-            if (initial_board[row][col] == 1) {
-                steadyState.steadystate[row][col] = '1';
-            } else if (initial_board[row][col] == 2) {
-                steadyState.steadystate[row][col] = '2';
+    for (int y = 0; y < C4_HEIGHT; ++y) {
+        for (int x = 0; x < C4_WIDTH; ++x) {
+            int pc = b.piece_code_at(x, y);
+            if (pc == 1) {
+                steadyState.steadystate[y][x] = '1';
+            } else if (pc == 2) {
+                steadyState.steadystate[y][x] = '2';
             } else {
-                steadyState.steadystate[row][col] = ' ';
+                steadyState.steadystate[y][x] = ' ';
             }
         }
     }
@@ -326,7 +327,7 @@ bool find_steady_state(std::string rep, int num_games, SteadyState& ss, bool ver
     // Generate a lot of random steady states
     int verification = 30000;
     for (int i = 0; i < 100; ++i) {
-        steady_states.push_back(create_random_steady_state(b.board));
+        steady_states.push_back(create_random_steady_state(b));
     }
     int games_played = 0;
 

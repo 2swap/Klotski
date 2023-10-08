@@ -54,8 +54,7 @@ public:
     const int BOARD_WIDTH = C4_WIDTH;
     const int BOARD_HEIGHT = C4_HEIGHT;
     std::string representation;
-    int board[C4_HEIGHT][C4_WIDTH];
-    Bitboard red_bitboard = 0, yellow_bitboard = 0, both_bitboard = 0;
+    Bitboard red_bitboard = 0, yellow_bitboard = 0;
     std::string blurb = "A connect 4 board.";
     std::string game_name = "c4";
 
@@ -64,16 +63,17 @@ public:
 
     C4Board(const C4Board& other);
     C4Board(std::string representation);
+    int piece_code_at(int x, int y) const;
     json get_data() const;
     int burst() const;
-    int move_wrapper();
     int get_instant_win() const;
     std::vector<int> get_winning_moves() const;
     int get_blocking_move() const;
     void print() const override;
     int random_legal_move() const;
     bool is_legal(int x) const;
-    C4Result who_won();
+    C4Result who_won() const;
+    bool is_reds_turn() const;
     bool is_solution() override;
     double board_specific_hash() const override;
     double board_specific_reverse_hash() const override;
@@ -93,6 +93,7 @@ public:
 };
 
 void fhourstones_tests(){
+    std::cout << "fhourstones_tests" << std::endl;
     C4Board b("4444445623333356555216622");
     int work = -1;
     C4Result winner = b.who_is_winning(work);
@@ -103,14 +104,18 @@ void fhourstones_tests(){
 }
 
 void construction_tests(){
+    std::cout << "construction_tests" << std::endl;
     C4Board a("71");
-    std::cout << a.yellow_bitboard << std::endl;
+    a.print();
+    assert(a.is_reds_turn());
     std::cout << a.red_bitboard << std::endl;
+    std::cout << a.yellow_bitboard << std::endl;
     assert(a.red_bitboard == 70368744177664UL);
     assert(a.yellow_bitboard == 1099511627776UL);
-    assert(a.both_bitboard == a.yellow_bitboard + a.red_bitboard);
 
     C4Board b("4444445623333356555216622");
+    assert(!b.is_reds_turn());
+    b.print();
     int expected[C4_HEIGHT][C4_WIDTH] = {
         {0, 0, 0, 2, 0, 0, 0},
         {0, 0, 2, 1, 1, 0, 0},
@@ -121,14 +126,20 @@ void construction_tests(){
     };
     for(int y = 0; y < C4_HEIGHT; y++)
         for(int x = 0; x < C4_WIDTH; x++){
-            assert(b.board[y][x] == expected[y][x]);
             assert(((b.red_bitboard >> (y*(1+C4_WIDTH)+x)) & 1UL) == (expected[y][x] == 1));
             assert(((b.yellow_bitboard >> (y*(1+C4_WIDTH)+x)) & 1UL) == (expected[y][x] == 2));
-            assert(((b.both_bitboard >> (y*(1+C4_WIDTH)+x)) & 1UL) == (expected[y][x] != 0));
         }
+    assert(b.is_legal(1));
+    assert(b.is_legal(2));
+    assert(b.is_legal(3));
+    assert(!b.is_legal(4));
+    assert(b.is_legal(5));
+    assert(b.is_legal(6));
+    assert(b.is_legal(7));
 }
 
 void winner_tests(){
+    std::cout << "winner_tests" << std::endl;
     std::list<std::pair<std::string, C4Result>> pairs;
     //verticals
     pairs.emplace_back("4141414", RED);

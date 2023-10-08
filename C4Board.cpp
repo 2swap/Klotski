@@ -9,42 +9,36 @@ C4Board::C4Board(const C4Board& other) {
     // Copy the representation
     representation = other.representation;
 
-    // Copy the board state
-    for (int i = 0; i < BOARD_HEIGHT; i++) {
-        for (int j = 0; j < BOARD_WIDTH; j++) {
-            board[i][j] = other.board[i][j];
-        }
-    }
-
     // Copy the bitboards
     red_bitboard = other.red_bitboard;
     yellow_bitboard = other.yellow_bitboard;
-    both_bitboard = other.both_bitboard;
 }
 
 C4Board::C4Board(std::string representation) {
-    // Allocate memory for the board array
-    for (int i = 0; i < C4_HEIGHT; ++i) {
-        for (int j = 0; j < C4_WIDTH; ++j) {
-            board[i][j] = 0;
-        }
-    }
-
     fill_board_from_string(representation);
+}
+
+//this is in 0-indexed, upside down x and y land
+int bitboard_at(Bitboard bb, int x, int y){
+    return (bb >> x >> y*(C4_WIDTH+1))&1UL;
+}
+
+int C4Board::piece_code_at(int x, int y) const {
+    return bitboard_at(red_bitboard, x, y) + (2*bitboard_at(yellow_bitboard, x, y));
 }
 
 void C4Board::print() const {
     std::cout << representation << std::endl;
     for(int y = 0; y < C4_HEIGHT; y++) {
         for(int x = 0; x < C4_WIDTH; x++) {
-            std::cout << disk_col(board[y][x]) << " ";
+            std::cout << disk_col(piece_code_at(x, y)) << " ";
         }
         std::cout << std::endl;
     }
 }
 
 bool C4Board::is_legal(int x) const {
-    return board[0][x-1] == 0;
+    return (((red_bitboard|yellow_bitboard) >> (x-1)) & 1) == 0;
 }
 
 int C4Board::random_legal_move() const {
@@ -63,11 +57,11 @@ int C4Board::random_legal_move() const {
     return legal_columns[random_index];
 }
 
-C4Result C4Board::who_won() {
+C4Result C4Board::who_won() const {
     const int v = C4_WIDTH;
     const int w = C4_WIDTH + 1; // there is a space of padding on the right of the bitboard
     const int x = C4_WIDTH + 2; // since otherwise horizontal wins would wrap walls
-    if(both_bitboard == 140185576636287ul) // this wont be resilient to other board sizes...
+    if((yellow_bitboard|red_bitboard) == 140185576636287ul) // this wont be resilient to other board sizes...
         return TIE;
 
     for (int i = 0; i < 2; i++){
@@ -88,12 +82,23 @@ bool C4Board::is_solution() {
     return winner == RED || winner == YELLOW;
 }
 
+/*double unsignedLongToDouble(Bitboard value) {
+    // Use type punning to reinterpret the bits of 'value' as a double
+    double result;
+    std::memcpy(&result, &value, sizeof(result));
+    return result;
+}
+
+double C4Board::board_specific_hash() const {
+    return unsignedLongToDouble(red_bitboard) + unsignedLongToDouble(yellow_bitboard)*2;
+}*/
+
 double C4Board::board_specific_hash() const {
     double a = 1;
     double hash_in_progress = 0;
-    for (int i = 0; i < C4_HEIGHT; i++) {
-        for (int j = 0; j < C4_WIDTH; j++) {
-            hash_in_progress += board[i][j] * a;
+    for (int y = 0; y < C4_HEIGHT; y++) {
+        for (int x = 0; x < C4_WIDTH; x++) {
+            hash_in_progress += a * piece_code_at(x, y);
             a *= 1.21813947;
         }
     }
@@ -103,9 +108,9 @@ double C4Board::board_specific_hash() const {
 double C4Board::board_specific_reverse_hash() const {
     double a = 1;
     double hash_in_progress = 0;
-    for (int i = 0; i < C4_HEIGHT; i++) {
-        for (int j = 0; j < C4_WIDTH; j++) {
-            hash_in_progress += board[i][C4_WIDTH-1-j] * a;
+    for (int y = 0; y < C4_HEIGHT; y++) {
+        for (int x = 0; x < C4_WIDTH; x++) {
+            hash_in_progress += a * piece_code_at(C4_WIDTH-1-x, y);
             a *= 1.21813947;
         }
     }
@@ -114,13 +119,6 @@ double C4Board::board_specific_reverse_hash() const {
 
 void C4Board::fill_board_from_string(const std::string& rep)
 {
-    // Initialize the board to all empty slots
-    for (int i = 0; i < C4_HEIGHT; i++) {
-        for (int j = 0; j < C4_WIDTH; j++) {
-            board[i][j] = 0;
-        }
-    }
-
     // Iterate through the moves and fill the board
     for (int i = 0; i < rep.size(); i++) {
         play_piece(rep[i]-'0');
@@ -128,24 +126,21 @@ void C4Board::fill_board_from_string(const std::string& rep)
 }
 
 void C4Board::play_piece(int piece){
-    if(piece < 0) {print(); std::cout << "uh oh " << piece << std::endl; exit(1);}
-    if(hash != 0) {print(); std::cout << "oops " << piece << std::endl; exit(1);}
+    if(piece < 0) {print(); std::cout << "uh oh " << representation << " " << piece << std::endl; exit(1);}
+    if(hash != 0) {print(); std::cout << "oops " << representation << " " << piece << std::endl; exit(1);}
     if(piece > 0){
-        if(!is_legal(piece)) {print(); std::cout << "gah " << piece << std::endl; exit(1);}
-        int x = piece - 1; // convert from char to int
+        if(!is_legal(piece)) {print(); std::cout << "gah " << representation << " " << piece << std::endl; exit(1);}
+        int x = piece - 1; // convert from 1index to 0
         int y = 0;
+        Bitboard bb = (red_bitboard | yellow_bitboard);
         for (y = C4_HEIGHT - 1; y >= 0; y--) {
-            if (board[y][x] == 0) {
-                board[y][x] = representation.size()%2+1;
+            if (bitboard_at(bb, x, y) == 0) {
+                Bitboard piece = 1UL << x << (y*(C4_WIDTH+1));
+                if(is_reds_turn()) red_bitboard += piece;
+                else yellow_bitboard += piece;
                 break;
             }
         }
-        Bitboard add = 1UL<<((1+C4_WIDTH)*y+x);
-        both_bitboard += add;
-        if(representation.size()%2==0)
-            red_bitboard += add;
-        else
-            yellow_bitboard += add;
         representation+=std::to_string(piece);
     } else {
         representation+='0';
@@ -195,7 +190,7 @@ C4Result C4Board::who_is_winning(int& work) {
     if (result.find("(=)") != std::string::npos) {
         std::cout << "Tie!" << std::endl;
         gameResult = TIE;
-    } else if ((result.find("(+)") != std::string::npos) == (representation.size() % 2 == 0)) {
+    } else if ((result.find("(+)") != std::string::npos) == is_reds_turn()) {
         std::cout << "Red!" << std::endl;
         gameResult = RED;
     } else {
@@ -273,27 +268,12 @@ std::vector<int> C4Board::get_winning_moves() const{
     return ret;
 }
 
-int getCachedChoice(const std::string& representation) {
-    // Open the cache file in read mode
-    std::ifstream cacheFile("cache.txt");
-    if (cacheFile.is_open()) {
-        std::string line;
-        while (std::getline(cacheFile, line)) {
-            size_t delimiterPos = line.find(": ");
-            if (delimiterPos != std::string::npos) {
-                std::string rep = line.substr(0, delimiterPos);
-                if (rep == representation) {
-                    int cachedChoice = std::stoi(line.substr(delimiterPos + 2));
-                    return cachedChoice;
-                }
-            }
-        }
-        cacheFile.close();
-    }
-    return -1; // Return -1 if no cached choice is found
+bool C4Board::is_reds_turn() const{
+    return representation.size() % 2 == 0;
 }
 
 int C4Board::burst() const{
+
     int wm = get_instant_win();
     if(wm != -1){
         std::cout << representation<<wm << " added for instawin" << std::endl;
@@ -303,17 +283,6 @@ int C4Board::burst() const{
     std::vector<int> winning_columns = get_winning_moves();
     if (winning_columns.size() == 0){
         std::cout << "error!" << std::endl;
-        exit(1);
-    }
-
-    int cachedChoice = getCachedChoice(representation);
-    if (cachedChoice != -1) {
-        std::cout << representation << " has a cached choice: " << cachedChoice << std::endl;
-        for (int i = 0; i < winning_columns.size(); ++i) {
-            int x = winning_columns[i];
-            if(x == cachedChoice) return x;
-        }
-        std::cout << "A cached result is not winning!" << representation << std::endl;
         exit(1);
     }
 
@@ -357,27 +326,15 @@ int C4Board::burst() const{
     return -1; // no easy line found... casework will be necessary :(
 }
 
-int C4Board::move_wrapper() {
+int C4Board::get_human_winning_fhourstones() {
+
     int ret = movecache.GetSuggestedMoveIfExists(get_hash());
     if(ret != -1) return ret;
-    ret = get_human_winning_fhourstones();
-    movecache.AddOrUpdateEntry(get_hash(), representation, ret);
-    return ret;
-}
 
-void cacheChoice(const std::string& representation, int choice) {
-    // Open the cache file in append mode
-    std::ofstream cacheFile("cache.txt", std::ios::app);
-    if (cacheFile.is_open()) {
-        cacheFile << representation << ": " << choice << std::endl;
-        cacheFile.close();
-    }
-}
-
-int C4Board::get_human_winning_fhourstones() {
     int b = burst();
     if(b != -1){
         std::cout << representation <<b<< " added by burst" << std::endl;
+        movecache.AddOrUpdateEntry(get_hash(), representation, b);
         return b;
     }
 
@@ -386,17 +343,19 @@ int C4Board::get_human_winning_fhourstones() {
         // Single winning column
         char wc = winning_columns[0];
         std::cout << representation<<wc << " added as the only winning move" << std::endl;
+        movecache.AddOrUpdateEntry(get_hash(), representation, wc);
         return wc;
     } else if (winning_columns.size() == 0){
         std::cout << "error!" << std::endl;
         exit(1);
     }
 
-    //std::unique_lock<std::mutex> lock(mtx);
+    int ret2 = movecache.GetSuggestedMoveIfExists(get_hash());
+    if(ret2 != -1) return ret2;
 
     print();
 
-    std::cout << representation << " has multiple winning columns. Please select one:" << std::endl;
+    std::cout << representation << " (" << get_hash() << ") has multiple winning columns. Please select one:" << std::endl;
     for (size_t i = 0; i < winning_columns.size(); i++) {
         std::cout << "Column " << winning_columns[i] << std::endl;
     }
@@ -412,12 +371,13 @@ int C4Board::get_human_winning_fhourstones() {
         }
     } while (std::find(winning_columns.begin(), winning_columns.end(), choice) == winning_columns.end());
 
-    cacheChoice(representation, choice);
+    movecache.AddOrUpdateEntry(get_hash(), representation, choice);
+    movecache.WriteCache();
     return choice;
 }
 
 void C4Board::add_best_winning_fhourstones(std::unordered_set<C4Board*>& neighbors) {
-    C4Board moved = child(move_wrapper());
+    C4Board moved = child(get_human_winning_fhourstones());
     std::cout << moved.representation << " added since it was selected" << std::endl;
     neighbors.insert(new C4Board(moved));
 }
@@ -489,14 +449,14 @@ std::unordered_set<C4Board*> C4Board::get_neighbors(){
             add_all_winning_fhourstones(neighbors);
             break;
         case SIMPLE_WEAK:
-            if(representation.size() % 2 == 0){
+            if(is_reds_turn()){
                 add_only_child_steady_state(ss_simple_weak, neighbors);
             }else{
                 add_all_legal_children(neighbors);
             }
             break;
         case TRIM_STEADY_STATES:
-            if(representation.size() % 2 == 1){ // if it's yellow's move
+            if(!is_reds_turn()){ // if it's yellow's move
                 int bm = get_blocking_move();
                 if(bm != -1 && child(bm).get_instant_win() != -1) break; // if i cant stop an insta win
                 SteadyState ss;
