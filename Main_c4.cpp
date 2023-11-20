@@ -22,7 +22,7 @@ void steady_it(){
 }
 
 void graph_it(){
-    std::string nodestr = "444443676";
+    std::string nodestr = "452122441";
     movecache.ReadCache();
 
     graph.add_to_stack(new C4Board(nodestr));

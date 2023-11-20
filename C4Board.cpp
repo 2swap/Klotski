@@ -4,7 +4,7 @@
 #include "SteadyState.cpp"
 #include "JsonC4Cache.cpp"
 
-Graph<C4Board> graph;
+Graph<C4Board>* graph_to_check_if_points_are_in = NULL;
 
 C4Board::C4Board(const C4Board& other) {
     // Copy the representation
@@ -291,7 +291,7 @@ int C4Board::burst() const{
     //drop a red piece in each column and see if it is in the graph
     for (int i = 0; i < winning_columns.size(); ++i) {
         int x = winning_columns[i];
-        if(graph.node_exists(child(x).get_hash())) {
+        if(graph_to_check_if_points_are_in->node_exists(child(x).get_hash())) {
         std::cout << representation <<x<< " added since it is in the graph already" << std::endl;return x;}
     }
 
@@ -445,7 +445,11 @@ std::unordered_set<C4Board*> C4Board::get_neighbors(){
         return neighbors;
     }
 
-    switch (mode){
+    switch (c4_branch_mode){
+        case MANUAL:
+        case FULL:
+            add_all_legal_children(neighbors);
+            break;
         case UNION_WEAK:
             add_all_winning_fhourstones(neighbors);
             break;

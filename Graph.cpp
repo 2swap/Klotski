@@ -32,8 +32,8 @@ public:
     T* data;
     std::unordered_set<double> neighbors;
     bool flooded = false;
-    double x = (double) rand() / (RAND_MAX), y = (double) rand() / (RAND_MAX), z = (double) rand() / (RAND_MAX);
-    double vx = 0, vy = 0, vz = 0;
+    double x = (double) rand() / (RAND_MAX), y = (double) rand() / (RAND_MAX), z = (double) rand() / (RAND_MAX), w = (double) rand() / (RAND_MAX);
+    double vx = 0, vy = 0, vz = 0, vw = 0;
 };
 
 /**
@@ -43,6 +43,12 @@ public:
 template <class T>
 class Graph{
 public:
+    double gravity_strength = 0;
+    double decay = .9;
+    double speedlimit = 3;
+    double repel_force = 1;
+    double attract_force = 1;
+    bool lock_root_at_origin = false;
 
     Graph(){}
 
@@ -70,7 +76,7 @@ public:
      */
     void add_node(T* t){
         double hash = t->get_hash();
-        if(nodes.find(hash) != nodes.end()) {
+        if(node_exists(hash)) {
             delete t;
             return;
         }
@@ -175,8 +181,8 @@ public:
         }
 
         // Add edge between the two nodes
-        nodes[node1].neighbors.insert(node2);
-        nodes[node2].neighbors.insert(node1);
+        nodes.find(node1)->second.neighbors.insert(node2);
+        nodes.find(node2)->second.neighbors.insert(node1);
     }
 
     /**
@@ -199,9 +205,44 @@ public:
     }
 
     /**
-     * Sanitize the graph by removing neighbor edges that point to nonexistent nodes.
+     * Sanitize the graph for closure under edges.
      */
     void sanitize_for_closure() {
+        add_edges_that_are_missing();
+        delete_edges_that_point_nowhere();
+    }
+
+    /**
+     * Sanitize the graph by adding edges which should be present but are not.
+     */
+    void add_edges_that_are_missing() {
+        for (auto it = nodes.begin(); it != nodes.end(); ++it) {
+            const Node<T>& node = it->second;
+            std::unordered_set<double> neighbor_hashes;
+
+            //if(node.neighbors.size() == 0){ // this if doesnt work because sometimes we only add one neighbor and prune the others for closure
+                // if there are no neighbors YET IN THE LIST. We may have already found the neighbors of this node and there might just not be any. TODO add bool to track.
+                std::unordered_set<T*> neighbor_nodes = node.data->get_neighbors();
+                for(T* neighbor_it : neighbor_nodes){
+                    neighbor_hashes.insert(neighbor_it->get_hash());
+                }
+            //}
+            //else {
+            //    neighbor_hashes = node.neighbors;
+            //}
+
+            for(double neighbor_hash : neighbor_hashes){
+                if (node_exists(neighbor_hash)) {
+                    connect_nodes(node.hash, neighbor_hash);
+                }
+            }
+        }
+    }
+
+    /**
+     * Sanitize the graph by removing neighbor edges that point to nonexistent nodes.
+     */
+    void delete_edges_that_point_nowhere() {
         for (auto it = nodes.begin(); it != nodes.end(); ++it) {
             std::list<double> to_remove;
             for (double d : it->second.neighbors) {
@@ -353,24 +394,27 @@ public:
                     double dx = node2->x - node->x;
                     double dy = node2->y - node->y;
                     double dz = node2->z - node->z;
-                    double force;
+                    double dw = node2->w - node->w;
+                    double force = repel_force;
+                    double dist_sq = dx * dx + dy * dy + dz * dz + dw * dw + .1;
                     if(sqrty){
-                        double dist = std::sqrt(dx * dx + dy * dy + dz * dz);
-                        force = 1/((dist+.1)*dist);
+                        force *= .5/dist_sq;
                     } else {
-                        double dist_sq = dx * dx + dy * dy + dz * dz + .1;
-                        force = .00025 / (dist_sq*dist_sq);
+                        force *= .0025 / (dist_sq*dist_sq);
                     }
                     double nx = force * dx;
                     double ny = force * dy;
                     double nz = force * dz;
+                    double nw = force * dw;
 
                     node2->vx += nx;
                     node2->vy += ny;
                     node2->vz += nz;
+                    node2->vw += nw;
                     node->vx -= nx;
                     node->vy -= ny;
                     node->vz -= nz;
+                    node->vw -= nw;
                 }
                 std::unordered_set<double> neighbor_nodes = node->neighbors;
                 
@@ -382,47 +426,53 @@ public:
                     double dx = node->x - neighbor.x;
                     double dy = node->y - neighbor.y;
                     double dz = node->z - neighbor.z;
-                    double force;
+                    double dw = node->w - neighbor.w;
+                    double force = attract_force;
+                    double dist_sq = dx * dx + dy * dy + dz * dz + dw * dw + 1;
                     if(sqrty){
-                        double dist = std::sqrt(dx * dx + dy * dy + dz * dz);
-                        force = (dist-1)/dist;
-                        force *= force;
+                        force *= .5*(dist_sq-1)/dist_sq;
                     } else {
-                        double dist_sq = dx * dx + dy * dy + dz * dz + 1;
-                        force = 1/dist_sq + dist_sq - 2;
-                        force /= 20;
+                        force *= 1/dist_sq + dist_sq - 2;
                     }
                     double nx = force * dx;
                     double ny = force * dy;
                     double nz = force * dz;
+                    double nw = force * dw;
                     
                     neighbor.vx += nx;
                     neighbor.vy += ny;
                     neighbor.vz += nz;
+                    neighbor.vw += nw;
                     node->vx -= nx;
                     node->vy -= ny;
                     node->vz -= nz;
+                    node->vw -= nw;
                 }
             }
 
-            double decay = .8;
-
-            double speedlimit = 10;
             for (size_t i = 0; i < node_vector.size(); ++i) {
                 Node<T>* node = node_vector[i];
-                if(node->vx >  speedlimit) node->vx =  speedlimit;
-                if(node->vy >  speedlimit) node->vy =  speedlimit;
-                if(node->vz >  speedlimit) node->vz =  speedlimit;
-                if(node->vx < -speedlimit) node->vx = -speedlimit;
-                if(node->vy < -speedlimit) node->vy = -speedlimit;
-                if(node->vz < -speedlimit) node->vz = -speedlimit;
-                
+                if(lock_root_at_origin && node->hash == root_node_hash){
+                    return;
+                }
+                double magnitude = std::sqrt(node->vx * node->vx + node->vy * node->vy + node->vz * node->vz + node->vw * node->vw);
+                if(magnitude > speedlimit) {
+                    double scale = speedlimit / magnitude;
+
+                    node->vx *= scale;
+                    node->vy *= scale;
+                    node->vz *= scale;
+                    node->vw *= scale;
+                }
+                node->vy += gravity_strength;
                 node->vx *= decay;
                 node->vy *= decay;
                 node->vz *= decay;
+                node->vw *= decay;
                 node->x += node->vx;
                 node->y += node->vy;
                 node->z += node->vz;
+                node->w = (node->w + node->vw)*.9;
             }
         }
     }

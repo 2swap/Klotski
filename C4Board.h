@@ -12,10 +12,12 @@
 enum C4BranchMode {
     UNION_WEAK,
     TRIM_STEADY_STATES,
-    SIMPLE_WEAK
+    SIMPLE_WEAK,
+    FULL,
+    MANUAL
 };
 typedef unsigned long int Bitboard;
-C4BranchMode mode = SIMPLE_WEAK;
+C4BranchMode c4_branch_mode = TRIM_STEADY_STATES;
 
 std::array<std::string, C4_HEIGHT> ss_list = {
     "   |@  ",
