@@ -17,12 +17,18 @@ void alpha_beta(){
 
 void steady_it(){
     SteadyState ss;
-    find_steady_state("220222211707777070", 100000000, ss, true, false);
+    find_steady_state("43676166344252336", 100000000, ss, true, false);
     exit(0);
 }
 
 void graph_it(){
-    std::string nodestr = "452122441";
+    Graph<C4Board> graph;
+    graph_to_check_if_points_are_in = &graph;
+    graph.dimensions = 3;
+    graph.iterate_and_render_on_add = true;
+    std::string nodestr = "436761";
+    graph.json_out_filename = "viewer/data/" + nodestr + ".json";
+
     movecache.ReadCache();
 
     graph.add_to_stack(new C4Board(nodestr));
@@ -34,8 +40,8 @@ void graph_it(){
     graph.mark_distances();
 
     std::cout << "nodes count = " << graph.size() << std::endl;
-    graph.iterate_physics(1000, true);
-    graph.render_json("viewer/data/" + nodestr + ".json");
+    graph.iterate_physics(1000);
+    graph.render_json();
     movecache.WriteCache();
 }
 

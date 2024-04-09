@@ -32,8 +32,9 @@ public:
     T* data;
     std::unordered_set<double> neighbors;
     bool flooded = false;
+    bool immobile = false;
+    double vx = (double) rand() / (RAND_MAX), vy = (double) rand() / (RAND_MAX), vz = (double) rand() / (RAND_MAX), vw = (double) rand() / (RAND_MAX);
     double x = (double) rand() / (RAND_MAX), y = (double) rand() / (RAND_MAX), z = (double) rand() / (RAND_MAX), w = (double) rand() / (RAND_MAX);
-    double vx = 0, vy = 0, vz = 0, vw = 0;
 };
 
 /**
@@ -48,7 +49,11 @@ public:
     double speedlimit = 3;
     double repel_force = 1;
     double attract_force = 1;
+    int dimensions = 2;
     bool lock_root_at_origin = false;
+    bool sqrty = true;
+    bool iterate_and_render_on_add = false;
+    std::string json_out_filename = "thisshouldntappear";
 
     Graph(){}
 
@@ -73,12 +78,15 @@ public:
      * Add a node to the graph.
      * @param t The data associated with the node.
      * @param dist The distance of the node from the root.
+     * @return hash The hash/id of the node which was added
      */
-    void add_node(T* t){
+    double add_node(T* t){
         double hash = t->get_hash();
+        std::cout << "adding node with hash: " << hash << " and representation " << t->representation << std::endl;
         if(node_exists(hash)) {
+            //std::cout << t->representation << "deleted since it was already in the graph" << std::endl;
             delete t;
-            return;
+            return hash;
         }
         Node<T> n(t, hash);
         nodes.insert(std::make_pair(hash,n));
@@ -87,9 +95,22 @@ public:
             root_node_hash = hash;
         }
         if(s%100 == 0) std::cout << s << " nodes and counting..." << std::endl;
-        //iterate_physics(3, true);
         make_edges_bidirectional();
-        //render_json("viewer/data/testwithradiant6.json");
+        if(iterate_and_render_on_add){
+            iterate_physics(3);
+            render_json();
+        }
+        return hash;
+    }
+
+    void add_node_with_position(T* t, double x, double y, double z){
+        double hash = add_node(t);
+        auto it = nodes.find(hash);
+        if(it == nodes.end()) return;
+        Node<T>& node = it->second;
+        node.x = x;
+        node.y = y;
+        node.z = z;
     }
 
     /**
@@ -302,6 +323,24 @@ public:
     }
 
     /**
+     * Mark all nodes presently in the graph as mobile.
+     */
+    void mobilize_all_nodes(){
+        for(auto it = nodes.begin(); it != nodes.end(); ++it){
+            it->second.immobile = false;
+        }
+    }
+
+    /**
+     * Mark all nodes presently in the graph as immobile.
+     */
+    void immobilize_all_nodes(){
+        for(auto it = nodes.begin(); it != nodes.end(); ++it){
+            it->second.immobile = true;
+        }
+    }
+
+    /**
      * Remove leaf nodes from the graph.
      * @param repeat If true, repeat the removal process iteratively.
      */
@@ -343,15 +382,25 @@ public:
      * @param id The hash of the node to be removed.
      */
     void remove_node(double id){
+        cout << "a" << endl;
         if(!node_exists(id)) return;
+        cout << "b" << endl;
         Node<T>* node = &(nodes.find(id)->second);
+        cout << "c" << endl;
         std::unordered_set<double> neighbor_nodes = node->neighbors;
+        cout << "d" << endl;
         for(double neighbor_id : neighbor_nodes){
+        cout << "1" << endl;
             Node<T>* neighbor = &(nodes.find(neighbor_id)->second);
+        cout << "2" << endl;
             neighbor->neighbors.erase(id);
+        cout << "3" << endl;
         }
+        cout << "4" << endl;
         delete node->data;
+        cout << "5" << endl;
         nodes.erase(id);
+        cout << "6" << endl;
     }
 
     /**
@@ -375,7 +424,7 @@ public:
      * Iterate the physics engine to spread out graph nodes.
      * @param iterations The number of iterations to perform.
      */
-    void iterate_physics(int iterations, bool sqrty){
+    void iterate_physics(int iterations){
         std::vector<Node<T>*> node_vector; // Change from list to vector
 
         for (auto& node_pair : nodes) {
@@ -384,7 +433,7 @@ public:
         int s = node_vector.size();
 
         for (int n = 0; n < iterations; n++) {
-            if(n%10==0) std::cout << "Spreading out graph, iteration " << n << std::endl;
+            if(n%10==0) std::cout << "Spreading out graph, iteration " << n << ". Node count = " << s << std::endl;
 
             for (size_t i = 0; i < s; ++i) {
                 Node<T>* node = node_vector[i];
@@ -450,10 +499,10 @@ public:
                 }
             }
 
-            for (size_t i = 0; i < node_vector.size(); ++i) {
+            for (size_t i = 0; i < s; ++i) {
                 Node<T>* node = node_vector[i];
-                if(lock_root_at_origin && node->hash == root_node_hash){
-                    return;
+                if((lock_root_at_origin && node->hash == root_node_hash) || node->immobile){
+                    continue;
                 }
                 double magnitude = std::sqrt(node->vx * node->vx + node->vy * node->vy + node->vz * node->vz + node->vw * node->vw);
                 if(magnitude > speedlimit) {
@@ -471,8 +520,14 @@ public:
                 node->vw *= decay;
                 node->x += node->vx;
                 node->y += node->vy;
-                node->z += node->vz;
-                node->w = (node->w + node->vw)*.9;
+                if(dimensions>=3)
+                    node->z += node->vz;
+                else
+                    node->z = 0;
+                if(dimensions>=4)
+                    node->w = (node->w + node->vw)*.9;
+                else
+                    node->w = 0;
             }
         }
     }
@@ -482,9 +537,9 @@ public:
      * Render the graph's data to a JSON file.
      * @param filename The name of the JSON file to create.
      */
-    void render_json(std::string filename) {
+    void render_json() {
         std::ofstream myfile;
-        myfile.open(filename);
+        myfile.open(json_out_filename);
 
         json json_data;
 

@@ -168,7 +168,9 @@ C4Result C4Board::who_is_winning(int& work) {
     std::cout << "Calling fhourstones on " << command << "... ";
     FILE* pipe = popen(command, "r");
     if (!pipe) {
-        std::cout << "error!" << std::endl;
+        std::cout << "fhourstones error!" << std::endl;
+        C4Board c4(representation);
+        std::cout << std::setprecision (15) << c4.get_hash() << std::endl;
         exit(1);
     }
     char buffer[4096];
@@ -283,7 +285,13 @@ int C4Board::burst() const{
 
     std::vector<int> winning_columns = get_winning_moves();
     if (winning_columns.size() == 0){
-        std::cout << "error!" << std::endl;
+        std::string representation2(representation);
+        while(representation2 != ""){
+            C4Board c4(representation2);
+            std::cout << representation2 << ": " << std::setprecision (15) << c4.get_hash() << std::endl;
+            representation2 = representation2.substr(0, representation2.size()-1);
+        }
+        std::cout << "Burst winning columns error!" << std::endl;
         exit(1);
     }
 
@@ -347,7 +355,7 @@ int C4Board::get_human_winning_fhourstones() {
         movecache.AddOrUpdateEntry(get_hash(), representation, wc);
         return wc;
     } else if (winning_columns.size() == 0){
-        std::cout << "error!" << std::endl;
+        std::cout << "Get human winning fhourstones error!" << std::endl;
         exit(1);
     }
 
@@ -387,8 +395,6 @@ void C4Board::add_all_legal_children(std::unordered_set<C4Board*>& neighbors){
     for (int i = 1; i <= C4_WIDTH; i++) {
         if (is_legal(i)) {
             C4Board moved = child(i);
-            std::cout << moved.representation << std::endl;
-                std::cout << moved.representation << " added since it is not dumb" << std::endl;
             neighbors.insert(new C4Board(moved));
         }
     }
@@ -482,7 +488,5 @@ std::unordered_set<C4Board*> C4Board::get_neighbors(){
             }
             break;
     }
-
-    std::cout << "I have " << neighbors.size() << " neighbors!" << std::endl;
     return neighbors;
 }
