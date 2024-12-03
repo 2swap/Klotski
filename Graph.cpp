@@ -48,12 +48,11 @@ public:
     double decay = .9;
     double speedlimit = 3;
     double repel_force = 1;
-    double attract_force = 1;
-    int dimensions = 2;
+    double attract_force = 0.1;
+    int dimensions = 3;
     bool lock_root_at_origin = false;
     bool sqrty = true;
     bool iterate_and_render_on_add = false;
-    std::string json_out_filename = "thisshouldntappear";
 
     Graph(){}
 
@@ -77,7 +76,6 @@ public:
     /**
      * Add a node to the graph.
      * @param t The data associated with the node.
-     * @param dist The distance of the node from the root.
      * @return hash The hash/id of the node which was added
      */
     double add_node(T* t){
@@ -96,9 +94,13 @@ public:
         }
         if(s%100 == 0) std::cout << s << " nodes and counting..." << std::endl;
         make_edges_bidirectional();
+        add_edges_that_are_missing_for_specific_node_and_teleport_to_parent(hash);
+        if(hash == root_node_hash && lock_root_at_origin){
+            Node<T>& just_inserted = nodes.find(hash)->second;
+            just_inserted.x = just_inserted.y = just_inserted.z = 0;
+        }
         if(iterate_and_render_on_add){
             iterate_physics(3);
-            render_json();
         }
         return hash;
     }
@@ -231,6 +233,45 @@ public:
     void sanitize_for_closure() {
         add_edges_that_are_missing();
         delete_edges_that_point_nowhere();
+    }
+
+    /**
+     * Sanitize the graph by adding edges which should be present but are not.
+     */
+    void add_edges_that_are_missing_for_specific_node_and_teleport_to_parent(double hash) {
+        for (auto it = nodes.begin(); it != nodes.end(); ++it) {
+            Node<T>& node = it->second;
+            std::unordered_set<double> neighbor_hashes;
+
+            //if(node.neighbors.size() == 0){ // this if doesnt work because sometimes we only add one neighbor and prune the others for closure
+                // if there are no neighbors YET IN THE LIST. We may have already found the neighbors of this node and there might just not be any. TODO add bool to track.
+                std::unordered_set<T*> neighbor_nodes = node.data->get_neighbors();
+                for(T* neighbor_it : neighbor_nodes){
+                    neighbor_hashes.insert(neighbor_it->get_hash());
+                }
+            //}
+            //else {
+            //    neighbor_hashes = node.neighbors;
+            //}
+
+            for(double neighbor_hash : neighbor_hashes){
+                Node<T>& neighbor = nodes.find(neighbor_hash)->second;
+                if (node_exists(neighbor_hash)) {
+                    if (node.hash == hash) {
+                        connect_nodes(node.hash, neighbor_hash);
+                        node.x = neighbor.x;
+                        node.y = neighbor.y;
+                        node.z = neighbor.z;
+                    }
+                    if (neighbor_hash == hash) {
+                        connect_nodes(node.hash, neighbor_hash);
+                        neighbor.x = node.x;
+                        neighbor.y = node.y;
+                        neighbor.z = node.z;
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -537,7 +578,8 @@ public:
      * Render the graph's data to a JSON file.
      * @param filename The name of the JSON file to create.
      */
-    void render_json() {
+    void render_json(string json_out_filename) {
+        cout << "Saving as " << json_out_filename << endl;
         std::ofstream myfile;
         myfile.open(json_out_filename);
 

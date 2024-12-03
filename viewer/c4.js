@@ -35,28 +35,16 @@ var square_sz = 40;
 function get_hash() {
     console.log(board_arr)
     let a = 1;
-    let hash_in_progress = 0;
+    let semihash = 0;
 
     for (let i = 0; i < parsedData.board_h; i++) {
         for (let j = 0; j < parsedData.board_w; j++) {
-            hash_in_progress += board_arr[parsedData.board_h-1-i][j] * a;
-            a *= 1.21813947;
+            semihash += board_arr[parsedData.board_h-1-i][j] * a;
+            a *= 1.021813947;
         }
     }
 
-    a = 1;
-    let hash_in_progress_2 = 0;
-
-    for (let i = 0; i < parsedData.board_h; i++) {
-        for (let j = 0; j < parsedData.board_w; j++) {
-            hash_in_progress_2 += board_arr[parsedData.board_h-1-i][parsedData.board_w - 1 - j] * a;
-            a *= 1.21813947;
-        }
-    }
-
-    let semihash = hash_in_progress * hash_in_progress_2;
-
-    var closedist = 1;
+    var closedist = 0.000001;
     var closename = -1;
     for(name in nodes){
         var dist = Math.abs(semihash-name);

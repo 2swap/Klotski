@@ -112,7 +112,7 @@ public:
         return hash_in_progress;
     }
 
-    double board_specific_reverse_hash() override {
+    double board_specific_reverse_hash() const override {
         return 1;
     }
 

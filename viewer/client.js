@@ -180,7 +180,7 @@ $(document).ready(async function() {
                     const neighbor_name = node.neighbors[neighbor_idx];
                     const neighbor = nodes[neighbor_name];
                     if(typeof neighbor == "undefined") continue;
-                    if(name < neighbor_name) continue;
+                    if(name < neighbor_name && (neighbor.neighbors != null && name in neighbor.neighbors)) continue;
                     graphctx.strokeStyle = get_color(name, neighbor_name);
                     graphctx.beginPath();
                     graphctx.moveTo(node.screen_x, node.screen_y);
@@ -202,7 +202,7 @@ $(document).ready(async function() {
 
             if(config.path.select == 1){
                 var curr_node = nodes[hash];
-                while(curr_node.solution_dist != 0){
+                while(curr_node.solution_dist && curr_node.solution_dist != 0){
                     for(i in curr_node.neighbors){
                         var neighbor = nodes[curr_node.neighbors[i]];
                         if(neighbor.solution_dist < curr_node.solution_dist){
