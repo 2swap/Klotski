@@ -35,6 +35,8 @@ function get_color(name, neighbor_name){
 
 var square_sz = 40;
 
+function on_click_node(){}
+
 function render_board () {
     boardcanvas.width = (parseInt(parsedData.board_w) + 1) * square_sz;
     boardcanvas.height = (parseInt(parsedData.board_h) + 1) * square_sz;

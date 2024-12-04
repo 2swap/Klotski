@@ -104,6 +104,7 @@ $(document).ready(async function() {
 
         function reset_hash(){
             hash = parsedData.root_node_hash;
+            on_click_node();
         }
 
         reset_hash();
@@ -280,7 +281,7 @@ $(document).ready(async function() {
                 y: e.clientY - rect.top
             };
             hash = get_closest_node_to(screen_coords);
-            console.log(hash);
+            on_click_node();
             on_board_change();
         }, false);
 
