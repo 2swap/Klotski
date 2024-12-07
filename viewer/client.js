@@ -154,7 +154,7 @@ $(document).ready(async function() {
         function render_blurb(){
             graphctx.textAlign = 'left';
             graphctx.globalAlpha = 1;
-            var y = h - 280;
+            var y = h - 196;
             graphctx.fillStyle = "white";
             graphctx.font = "16px Arial";
             graphctx.fillText("Controls", 20, y+=16)
@@ -188,7 +188,7 @@ $(document).ready(async function() {
                     graphctx.lineTo(neighbor.screen_x, neighbor.screen_y);
                     graphctx.stroke();
                 }
-                if(config.solutions.select == 1 && node.solution_dist == 0){
+                if(config.solutions && config.solutions.select == 1 && node.solution_dist == 0){
                     graphctx.strokeStyle = `white`;
                     graphctx.beginPath();
                     graphctx.arc(node.screen_x, node.screen_y, 5, 0, 2*Math.PI);
@@ -201,9 +201,10 @@ $(document).ready(async function() {
             graphctx.arc(nodes[hash].screen_x, nodes[hash].screen_y, 10, 0, 2*Math.PI);
             graphctx.stroke();
 
-            if(config.path.select == 1){
+            if(config.path && config.path.select == 1){
                 var curr_node = nodes[hash];
                 while(curr_node.solution_dist && curr_node.solution_dist != 0){
+                    var dont_give_up = false;
                     for(i in curr_node.neighbors){
                         var neighbor = nodes[curr_node.neighbors[i]];
                         if(neighbor.solution_dist < curr_node.solution_dist){
@@ -214,9 +215,11 @@ $(document).ready(async function() {
                             graphctx.stroke();
 
                             curr_node = neighbor;
+                            dont_give_up = true;
                             break;
                         }
                     }
+                    if(!dont_give_up) break;
                 }
             }
 

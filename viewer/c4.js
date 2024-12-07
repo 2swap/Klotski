@@ -1,11 +1,9 @@
 config = {
-    solutions: {options:["Invisible", "Visible"], select:0, key:'Q'},
-    path: {options:["Invisible", "Visible"], select:0, key:'P'},
 };
 const game_blurb = [
     "This is a complete weak solution of connect 4.",
-    "This is (close to) the minimum amount of information which you need to",
-    "'memorize' in order to be able to always win starting from the shown position.",
+    "It is (close to) the minimum amount of information which you need to",
+    "'memorize' in order to always win, as player 1 (red).",
     "Terminal nodes contain 'steady state diagrams', a language which expresses",
     "low-information weak solutions of sufficiently developed positions."
 ]
@@ -23,7 +21,7 @@ var YELLOW      = "#ff0";
 
 
 function get_color(name, neighbor_name){
-    return Math.min(nodes[name].representation.length, nodes[neighbor_name].representation.length)%2==1?YELLOW:RED
+    return Math.min(nodes[name].rep.length, nodes[neighbor_name].rep.length)%2==1?YELLOW:RED
 }
 
 let board_arr = 0;
@@ -56,7 +54,7 @@ function get_hash() {
 
 function render_board () {
     boardcanvas.width = parseInt(parsedData.board_w) * square_sz;
-    boardcanvas.height = parseInt(parsedData.board_h) * square_sz;
+    boardcanvas.height = parseInt(parsedData.board_h) * square_sz + 54;
     boardctx.font = "24px Arial";
     boardctx.textAlign = "center";
     board_arr = [];
@@ -91,6 +89,20 @@ function render_board () {
             drawStone(x, y, board_arr[y][x], winningLine);
         }
     }
+
+    boardctx.font = "15px Arial";
+    boardctx.textAlign = "left";
+    boardctx.fillStyle = "white";
+    if(winningLine)
+        boardctx.fillText("Press 'r' to reset!", 8, 16+square_sz * parsedData.board_h);
+    else if(extraMoves == "")
+        boardctx.fillText("Click to play against the weak solution!", 8, 16+square_sz * parsedData.board_h);
+    else {
+        var dy = 0;
+        boardctx.fillText("This is a Steady State Diagram,"  , 8, (dy+=16)+square_sz * parsedData.board_h);
+        boardctx.fillText("which instructs the agent to play", 8, (dy+=16)+square_sz * parsedData.board_h);
+        boardctx.fillText("perfectly from here on."          , 8, (dy+=16)+square_sz * parsedData.board_h);
+    }
 }
 
 // Helper function to draw a stone
@@ -115,7 +127,7 @@ function drawStone(x, y, col, winningLine) {
     boardctx.fillStyle = "white";
 
     // Draw steady state markers if needed
-    const ss = String.fromCharCode(nodes[hash].steadystate[5 - y][x]);
+    const ss = String.fromCharCode(nodes[hash].data.ss[5 - y][x]);
     if (ss !== '1' && ss !== '2') {
         boardctx.fillText(ss, px, py + 9);
     }
@@ -181,7 +193,7 @@ function makeMoveAsRed(){
         for(var neighbor_id in nodes[thishash].neighbors){
             var neighbor_hash = nodes[thishash].neighbors[neighbor_id];
             var neighbor = nodes[neighbor_hash];
-            if(neighbor.representation.length > nodes[thishash].representation.length){
+            if(neighbor.rep.length > nodes[thishash].rep.length){
                 hash = neighbor_hash;
                 extraMoves = "";
                 on_board_change();
@@ -192,7 +204,7 @@ function makeMoveAsRed(){
 
     else {
         console.log("Attempting steadystate");
-        extraMoves += querySteadyState(board_arr, nodes[hash].steadystate);
+        extraMoves += querySteadyState(board_arr, nodes[hash].data.ss);
         on_board_change();
     }
 }
@@ -307,7 +319,7 @@ setInterval(makeMoveAsRed, 300);
 function on_click_node(){ extraMoves = ""; }
 
 function repstr(){
-    return nodes[hash].representation + extraMoves;
+    return nodes[hash].rep + extraMoves;
 }
 
 function makeMoveAsYellow(column) {
@@ -315,7 +327,7 @@ function makeMoveAsYellow(column) {
     if(repstr().length%2 == 0) return;
     let x = column-1;
 
-    let who = nodes[hash].representation.length%2 + 1
+    let who = nodes[hash].rep.length%2 + 1
 
     // place the piece
     for (var y=0; y<6; y++) {
