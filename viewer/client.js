@@ -167,7 +167,7 @@ $(document).ready(async function() {
             graphctx.fillText("[click] on a node!", 20, y+=16)
             graphctx.fillText("", 20, y+=16)
             for(s in game_blurb){
-                graphctx.fillText(game_blurb[s], 20, y+=16)
+                graphctx.fillText(game_blurb[s].replaceAll("<nodes>", Object.keys(nodes).length), 20, y+=16)
             }
         }
 

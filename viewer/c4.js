@@ -1,7 +1,7 @@
 config = {
 };
 const game_blurb = [
-    "This is a complete weak solution of connect 4.",
+    "This is a complete weak solution of connect-4 with <nodes> nodes.",
     "It is (close to) the minimum amount of information which you need to",
     "'memorize' in order to always win, as player 1 (red).",
     "Terminal nodes contain 'steady state diagrams', a language which expresses",
