@@ -270,12 +270,16 @@ function querySteadyState(boardArr, steadyState) {
         }
     }
 
-    // Identify instant win and blocking moves
+    // Identify instant wins
     for (let x = 0; x < COLUMNS; x++) {
         if (getColumnState(x) !== -1) {
-            // Check for an instant win
             if (checkWin(boardArr, x, 1)) return x + 1; // Player 1 wins
-            // Check for a blocking move
+        }
+    }
+
+    // Identify blocking moves
+    for (let x = 0; x < COLUMNS; x++) {
+        if (getColumnState(x) !== -1) {
             if (checkWin(boardArr, x, 2)) return x + 1; // Block Player 2's win
         }
     }
